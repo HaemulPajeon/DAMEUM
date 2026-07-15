@@ -8,6 +8,7 @@ TAG_HEALTH = "상태 확인"
 TAG_PROFILES = "목소리 프로필"
 TAG_BOOKS = "동화책"
 TAG_LULLABIES = "자장가"
+TAG_SINGING_LULLABIES = "Seed-VC 가창 자장가"
 TAG_LIBRARY = "콘텐츠 라이브러리"
 TAG_JOBS = "비동기 작업"
 
@@ -35,6 +36,13 @@ OPENAPI_TAGS = [
         "description": (
             "부모 음색으로 가사를 부드럽게 낭독한 WAV를 생성합니다. 반복과 타이머의 실제 "
             "재생 제어는 응답 설정을 사용해 프론트엔드에서 수행합니다."
+        ),
+    },
+    {
+        "name": TAG_SINGING_LULLABIES,
+        "description": (
+            "한국 전래 무반주 가이드 보컬을 선택하고 Seed-VC SVC 모델로 멜로디를 유지한 채 "
+            "등록된 부모 음색으로 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 분리됩니다."
         ),
     },
     {
@@ -105,6 +113,33 @@ PROFILE_NOT_READY_RESPONSE = error_response(
     "profile_not_ready",
     "미리듣기로 확인을 마친 목소리 프로필이 필요합니다",
 )
+SEEDVC_UNAVAILABLE_RESPONSE = error_response(
+    "별도 Seed-VC CPU 런타임이 설치되지 않았거나 추론 큐가 가득 참",
+    "seedvc_runtime_unavailable",
+    "Seed-VC CPU 런타임을 먼저 설치해야 합니다",
+)
+SEEDVC_UNAVAILABLE_RESPONSE["content"]["application/json"] = {
+    "examples": {
+        "runtime_unavailable": {
+            "summary": "Seed-VC 미설치",
+            "value": {
+                "detail": {
+                    "code": "seedvc_runtime_unavailable",
+                    "message": "Seed-VC CPU 런타임을 먼저 설치해야 합니다",
+                }
+            },
+        },
+        "queue_full": {
+            "summary": "추론 큐 포화",
+            "value": {
+                "detail": {
+                    "code": "queue_full",
+                    "message": "추론 작업 대기열이 가득 찼습니다",
+                }
+            },
+        },
+    }
+}
 INSUFFICIENT_SAMPLES_RESPONSE = error_response(
     "음성 샘플이 5개 미만이거나 20개를 초과함",
     "insufficient_samples",

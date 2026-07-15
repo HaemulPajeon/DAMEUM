@@ -37,9 +37,19 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8081/v1"
     llm_api_key: str = "local-only"
     llm_model: str = "Qwen3-1.7B"
-    stt_model: str = "small"
+    stt_model: str = "openai/whisper-small"
+    stt_adapter_dir: Path = Path("./artifacts/stt/whisper-small-lora-dysarthria")
+    stt_adapter_sha256: str = Field(
+        default="9772a95bfd1d77716ddae060790a6c40ad80f65a31d551caf7ce12f5a242ecbe",
+        pattern=r"^[0-9a-f]{64}$",
+    )
     emotion_model: str = "jeongyoonhuh/koelectra-emotion-6class"
     voxcpm_model: str = "openbmb/VoxCPM2"
+    seedvc_runtime_dir: Path = Path("./.runtime/seed-vc")
+    seedvc_commit: str = "51383efd921027683c89e5348211d93ff12ac2a8"
+    seedvc_diffusion_steps: int = Field(default=10, ge=4, le=50)
+    seedvc_timeout_seconds: int = Field(default=3600, ge=60, le=7200)
+    lullaby_catalog_dir: Path = Path("./assets/lullabies")
     cpu_threads: int = Field(default=max(1, min(4, os.cpu_count() or 2)), ge=1, le=32)
     unload_models_after_job: bool = True
 
@@ -71,12 +81,51 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return f"sqlite+aiosqlite:///{(self.data_dir / 'dameum.sqlite3').resolve()}"
 
+    @property
+    def resolved_stt_adapter_dir(self) -> Path:
+        if self.stt_adapter_dir.is_absolute():
+            return self.stt_adapter_dir.resolve()
+        project_dir = Path(__file__).resolve().parents[1]
+        return (project_dir / self.stt_adapter_dir).resolve()
+
+    @property
+    def project_dir(self) -> Path:
+        return Path(__file__).resolve().parents[1]
+
+    def resolve_project_path(self, value: Path) -> Path:
+        if value.is_absolute():
+            return value.resolve()
+        return (self.project_dir / value).resolve()
+
+    @property
+    def resolved_seedvc_runtime_dir(self) -> Path:
+        return self.resolve_project_path(self.seedvc_runtime_dir)
+
+    @property
+    def resolved_lullaby_catalog_dir(self) -> Path:
+        return self.resolve_project_path(self.lullaby_catalog_dir)
+
+    @property
+    def seedvc_python_path(self) -> Path:
+        if os.name == "nt":
+            return self.resolved_seedvc_runtime_dir / ".venv" / "Scripts" / "python.exe"
+        return self.resolved_seedvc_runtime_dir / ".venv" / "bin" / "python"
+
+    @property
+    def seedvc_runtime_ready(self) -> bool:
+        return (
+            self.resolved_seedvc_runtime_dir / "inference.py"
+        ).is_file() and self.seedvc_python_path.is_file()
+
     def prepare_directories(self) -> None:
         for path in (
             self.data_dir,
             self.data_dir / "audio" / "original",
             self.data_dir / "audio" / "normalized",
+            self.data_dir / "audio" / "profiles",
             self.data_dir / "audio" / "generated",
+            self.data_dir / "audio" / "seedvc" / "generated",
+            self.data_dir / "audio" / "seedvc" / "work",
             self.data_dir / "images",
         ):
             path.mkdir(parents=True, exist_ok=True)
