@@ -206,11 +206,18 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
 
         catalog = client.get("/v1/singing-lullabies/catalog", headers=HEADERS)
         assert catalog.status_code == 200
-        assert len(catalog.json()) == 1
-        assert catalog.json()[0]["id"] == "little-star-english"
-        assert catalog.json()[0]["title"] == "작은별_영문"
-        source = catalog.json()[0]
+        assert {item["id"] for item in catalog.json()} == {
+            "little-star-english",
+            "sleep-well-my-baby",
+        }
+        source = next(item for item in catalog.json() if item["id"] == "little-star-english")
+        assert source["title"] == "작은별_영문"
         assert source["recording_license"] == "CC0 1.0"
+        korean_source = next(
+            item for item in catalog.json() if item["id"] == "sleep-well-my-baby"
+        )
+        assert korean_source["title"] == "잘자라 우리아가"
+        assert korean_source["duration_ms"] == 12137
         source_audio = client.get(source["audio_url"], headers=HEADERS)
         assert source_audio.status_code == 200
         assert source_audio.headers["content-type"].startswith("audio/wav")

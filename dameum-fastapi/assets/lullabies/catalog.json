@@ -11,5 +11,18 @@
     "composition_license": "Public Domain",
     "recording_license": "CC0 1.0",
     "attribution": "bectec, singing twinkle twinkle, Mr. moon.wav, Freesound sound 665123 (CC0 1.0)"
+  },
+  {
+    "id": "sleep-well-my-baby",
+    "title": "잘자라 우리아가",
+    "description": "사용자가 제공한 한국어 무반주 자장가 프리셋입니다.",
+    "lyrics": "잘 자라 우리 아가",
+    "region": "한국어",
+    "audio_file": "잘자라_우리아가.wav",
+    "duration_ms": 12137,
+    "sha256": "db06acbe8a75a8b2f638562d1c14c6262ebb965a1306ae3a536e01f02ca74713",
+    "composition_license": "사용자 제공",
+    "recording_license": "사용자 제공",
+    "attribution": "사용자 제공 음원"
   }
 ]

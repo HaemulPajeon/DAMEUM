@@ -294,9 +294,10 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 순차 변환한 뒤 20ms crossfade로 결합합니다. `GET /health/ready`의
 `seedvc_runtime_ready=false`이면 생성 버튼을 비활성화합니다.
 
-현재 카탈로그는 CC0 1.0으로 공개된 실제 여성 무반주 가창 `작은별_영문.wav`의 9초 구간을
-포함합니다. 프론트는 `composition_license`, `recording_license`, `attribution`을 원곡 상세에
-표시해야 합니다. 서버는 시작할 때 카탈로그 SHA-256과 경로 이탈을 검증합니다.
+현재 카탈로그는 CC0 1.0으로 공개된 실제 여성 무반주 가창 `작은별_영문.wav`의 9초 구간과
+사용자가 제공한 한국어 무반주 가창 `잘자라_우리아가.wav`의 12.14초 구간을 포함합니다.
+프론트는 `composition_license`, `recording_license`, `attribution`을 원곡 상세에 표시해야
+합니다. 서버는 시작할 때 카탈로그 SHA-256과 경로 이탈을 검증합니다.
 
 ## 11. 변경·검증 규칙
 
