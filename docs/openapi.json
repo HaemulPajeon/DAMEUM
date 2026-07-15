@@ -1,0 +1,4649 @@
+{
+  "components": {
+    "schemas": {
+      "Body_add_voice_sample": {
+        "properties": {
+          "audio": {
+            "contentMediaType": "application/octet-stream",
+            "description": "최대 25MB, 0.5~180초의 음성 파일",
+            "title": "Audio",
+            "type": "string"
+          },
+          "prompt_text": {
+            "description": "업로드한 음성에서 실제로 읽은 문장",
+            "examples": [
+              "오늘도 너와 함께해서 행복해."
+            ],
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Prompt Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt_text",
+          "audio"
+        ],
+        "title": "Body_add_voice_sample",
+        "type": "object"
+      },
+      "Body_put_page_image": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "description": "최대 10MB, 4천만 픽셀 이하의 페이지 이미지",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_put_page_image",
+        "type": "object"
+      },
+      "Body_put_page_recording": {
+        "properties": {
+          "audio": {
+            "contentMediaType": "application/octet-stream",
+            "description": "최대 25MB, 0.5~180초의 페이지 녹음",
+            "title": "Audio",
+            "type": "string"
+          },
+          "profile_id": {
+            "description": "미리듣기 확인이 완료된 목소리 프로필 UUID",
+            "title": "Profile Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "audio"
+        ],
+        "title": "Body_put_page_recording",
+        "type": "object"
+      },
+      "BookCreate": {
+        "examples": [
+          {
+            "author": "담음",
+            "pages": [
+              {
+                "page_number": 1,
+                "text": "달님이 환하게 웃었어요."
+              },
+              {
+                "page_number": 2,
+                "text": "아기도 방긋 웃었어요."
+              }
+            ],
+            "title": "달님 안녕"
+          }
+        ],
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "저자 또는 출처",
+            "title": "Author"
+          },
+          "pages": {
+            "description": "페이지 번호와 원문 목록",
+            "items": {
+              "$ref": "#/components/schemas/BookPageCreate"
+            },
+            "maxItems": 300,
+            "minItems": 1,
+            "title": "Pages",
+            "type": "array"
+          },
+          "title": {
+            "description": "책 제목",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "pages"
+        ],
+        "title": "BookCreate",
+        "type": "object"
+      },
+      "BookPageCreate": {
+        "properties": {
+          "page_number": {
+            "description": "1부터 시작하는 페이지 번호",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "text": {
+            "description": "VoxCPM2로 합성할 페이지 원문",
+            "maxLength": 3000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "page_number",
+          "text"
+        ],
+        "title": "BookPageCreate",
+        "type": "object"
+      },
+      "BookPageRead": {
+        "properties": {
+          "id": {
+            "description": "페이지 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "페이지 WebP 이미지 상대 URL",
+            "title": "Image Url"
+          },
+          "page_number": {
+            "description": "페이지 번호",
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordingRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "페이지 녹음과 합성 결과"
+          },
+          "text": {
+            "description": "페이지 원문",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "page_number",
+          "text"
+        ],
+        "title": "BookPageRead",
+        "type": "object"
+      },
+      "BookRead": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "저자 또는 출처",
+            "title": "Author"
+          },
+          "created_at": {
+            "description": "책 생성 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "책 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "pages": {
+            "description": "페이지별 원문·이미지·녹음 정보",
+            "items": {
+              "$ref": "#/components/schemas/BookPageRead"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "title": {
+            "description": "책 제목",
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "책 최종 변경 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "pages",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BookRead",
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "description": "프론트엔드 분기 처리용 안정적인 오류 코드",
+            "examples": [
+              "not_found"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "요청 검증 실패 시 필드별 상세 오류",
+            "title": "Errors"
+          },
+          "message": {
+            "description": "사용자에게 표시할 수 있는 한글 오류 메시지",
+            "examples": [
+              "목소리 프로필을(를) 찾을 수 없습니다"
+            ],
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail",
+            "description": "공통 API 오류 본문"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HealthLive": {
+        "properties": {
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "description": "API 프로세스 생존 상태",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "HealthLive",
+        "type": "object"
+      },
+      "HealthReady": {
+        "properties": {
+          "inference_backend": {
+            "description": "현재 추론 backend",
+            "enum": [
+              "real",
+              "mock"
+            ],
+            "title": "Inference Backend",
+            "type": "string"
+          },
+          "models": {
+            "$ref": "#/components/schemas/ModelConfiguration",
+            "description": "현재 모델 구성"
+          },
+          "queued_jobs": {
+            "description": "대기 중인 추론 작업 수",
+            "minimum": 0.0,
+            "title": "Queued Jobs",
+            "type": "integer"
+          },
+          "status": {
+            "const": "ready",
+            "default": "ready",
+            "description": "요청 수신 가능 상태",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inference_backend",
+          "queued_jobs",
+          "models"
+        ],
+        "title": "HealthReady",
+        "type": "object"
+      },
+      "JobAccepted": {
+        "examples": [
+          {
+            "job_id": "c40c3cf0-6a96-4bcc-bc77-91de1ee28f9b",
+            "status": "queued",
+            "status_url": "/v1/jobs/c40c3cf0-6a96-4bcc-bc77-91de1ee28f9b"
+          }
+        ],
+        "properties": {
+          "job_id": {
+            "description": "생성된 비동기 작업 UUID",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "queued",
+            "default": "queued",
+            "description": "최초 작업 상태",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "1~2초 간격으로 조회할 작업 상태 상대 URL",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status_url"
+        ],
+        "title": "JobAccepted",
+        "type": "object"
+      },
+      "JobRead": {
+        "properties": {
+          "created_at": {
+            "description": "작업 생성 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "실패 시 분기 처리용 오류 코드",
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "실패 시 사용자 표시용 메시지",
+            "title": "Error Message"
+          },
+          "id": {
+            "description": "비동기 작업 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "작업 종류",
+            "enum": [
+              "recording_pipeline",
+              "profile_preview",
+              "lullaby_generation"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "progress": {
+            "description": "작업 진행률",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "status": {
+            "description": "queued → running → succeeded 또는 failed",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target_id": {
+            "description": "작업 대상 리소스 UUID",
+            "title": "Target Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "상태 최종 변경 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "target_id",
+          "status",
+          "progress",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobRead",
+        "type": "object"
+      },
+      "LibraryItem": {
+        "properties": {
+          "id": {
+            "description": "책 또는 자장가 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "콘텐츠 종류",
+            "enum": [
+              "book",
+              "lullaby"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "playable_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "manifest 또는 WAV 상대 URL",
+            "title": "Playable Url"
+          },
+          "status": {
+            "description": "콘텐츠 준비 상태",
+            "enum": [
+              "draft",
+              "processing",
+              "partial",
+              "ready",
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "description": "콘텐츠 제목",
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "최종 변경 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "updated_at"
+        ],
+        "title": "LibraryItem",
+        "type": "object"
+      },
+      "LullabyCreate": {
+        "examples": [
+          {
+            "lyrics": "잘 자라 우리 아가, 포근한 꿈을 꾸렴.",
+            "profile_id": "9f93bd9e-71d4-497d-9512-29c6975263f3",
+            "repeat_count": 3,
+            "timer_minutes": 20,
+            "title": "잘 자라 우리 아가"
+          }
+        ],
+        "properties": {
+          "lyrics": {
+            "description": "부드러운 부모 음색으로 낭독할 가사",
+            "maxLength": 3000,
+            "minLength": 2,
+            "title": "Lyrics",
+            "type": "string"
+          },
+          "profile_id": {
+            "description": "ready 상태인 목소리 프로필 UUID",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "repeat_count": {
+            "default": 1,
+            "description": "프론트 재생 반복 횟수",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Repeat Count",
+            "type": "integer"
+          },
+          "timer_minutes": {
+            "anyOf": [
+              {
+                "maximum": 480.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "프론트에서 재생을 중단할 타이머(분)",
+            "title": "Timer Minutes"
+          },
+          "title": {
+            "description": "자장가 제목",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "title",
+          "lyrics"
+        ],
+        "title": "LullabyCreate",
+        "type": "object"
+      },
+      "LullabyRead": {
+        "properties": {
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "생성된 WAV 상대 URL",
+            "title": "Audio Url"
+          },
+          "created_at": {
+            "description": "생성 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "자장가 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "lyrics": {
+            "description": "합성한 가사",
+            "title": "Lyrics",
+            "type": "string"
+          },
+          "profile_id": {
+            "description": "사용한 목소리 프로필 UUID",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "repeat_count": {
+            "description": "반복 횟수",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Repeat Count",
+            "type": "integer"
+          },
+          "status": {
+            "description": "자장가 생성 상태",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timer_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "재생 타이머(분)",
+            "title": "Timer Minutes"
+          },
+          "title": {
+            "description": "자장가 제목",
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "최종 변경 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "title",
+          "lyrics",
+          "status",
+          "repeat_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LullabyRead",
+        "type": "object"
+      },
+      "ModelConfiguration": {
+        "properties": {
+          "correction": {
+            "description": "문장 복원 LLM 식별자",
+            "examples": [
+              "Qwen3-1.7B"
+            ],
+            "title": "Correction",
+            "type": "string"
+          },
+          "emotion": {
+            "description": "감정 분류 모델 식별자",
+            "examples": [
+              "jeongyoonhuh/koelectra-emotion-6class"
+            ],
+            "title": "Emotion",
+            "type": "string"
+          },
+          "stt": {
+            "description": "STT 모델 식별자",
+            "examples": [
+              "small"
+            ],
+            "title": "Stt",
+            "type": "string"
+          },
+          "tts": {
+            "description": "음성 합성 모델 식별자",
+            "examples": [
+              "openbmb/VoxCPM2"
+            ],
+            "title": "Tts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stt",
+          "correction",
+          "emotion",
+          "tts"
+        ],
+        "title": "ModelConfiguration",
+        "type": "object"
+      },
+      "PlaybackManifest": {
+        "properties": {
+          "book_id": {
+            "description": "책 UUID",
+            "title": "Book Id",
+            "type": "string"
+          },
+          "pages": {
+            "description": "프리패치할 페이지별 미디어 URL",
+            "items": {
+              "$ref": "#/components/schemas/PlaybackPage"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "prefetch_next": {
+            "default": true,
+            "description": "300ms 이내 전환을 위해 다음 페이지를 미리 로드해야 하는지 여부",
+            "title": "Prefetch Next",
+            "type": "boolean"
+          },
+          "title": {
+            "description": "책 제목",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "book_id",
+          "title",
+          "pages"
+        ],
+        "title": "PlaybackManifest",
+        "type": "object"
+      },
+      "PlaybackPage": {
+        "properties": {
+          "clarified_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "재합성 WAV 상대 URL",
+            "title": "Clarified Url"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "페이지 이미지 상대 URL",
+            "title": "Image Url"
+          },
+          "original_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "원본 발화 WAV 상대 URL",
+            "title": "Original Url"
+          },
+          "page_number": {
+            "description": "페이지 번호",
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "text": {
+            "description": "페이지 원문",
+            "title": "Text",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "페이지 녹음 버전",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "page_number",
+          "text"
+        ],
+        "title": "PlaybackPage",
+        "type": "object"
+      },
+      "PreviewRequest": {
+        "examples": [
+          {
+            "text": "오늘도 사랑하는 우리 아이와 따뜻한 이야기를 나눌게요."
+          }
+        ],
+        "properties": {
+          "text": {
+            "default": "오늘도 사랑하는 우리 아이와 따뜻한 이야기를 나눌게요.",
+            "description": "미리듣기로 합성할 한국어 문장",
+            "maxLength": 300,
+            "minLength": 2,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "title": "PreviewRequest",
+        "type": "object"
+      },
+      "RecordingRead": {
+        "properties": {
+          "clarified_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "처리 완료 후 생성되는 재합성 WAV 상대 URL",
+            "title": "Clarified Url"
+          },
+          "corrected_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "LLM이 복원한 최종 합성 문장",
+            "title": "Corrected Text"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "enum": [
+                  "기쁨",
+                  "슬픔",
+                  "분노",
+                  "불안",
+                  "당황",
+                  "상처",
+                  "중립"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "한국어 감정 분류 결과",
+            "title": "Emotion"
+          },
+          "emotion_score": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "감정 분류 신뢰도",
+            "title": "Emotion Score"
+          },
+          "id": {
+            "description": "페이지 녹음 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "original_url": {
+            "description": "인증 헤더로 조회할 원본 발화 WAV 상대 URL",
+            "title": "Original Url",
+            "type": "string"
+          },
+          "profile_id": {
+            "description": "합성에 사용한 목소리 프로필 UUID",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "페이지 음성 처리 상태",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "faster-whisper STT 결과",
+            "title": "Transcript"
+          },
+          "version": {
+            "description": "페이지 재녹음 버전",
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "status",
+          "version",
+          "original_url"
+        ],
+        "title": "RecordingRead",
+        "type": "object"
+      },
+      "ValidationIssue": {
+        "properties": {
+          "field": {
+            "description": "오류가 발생한 요청 필드 경로",
+            "examples": [
+              "body.name"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "message": {
+            "description": "필드 검증 실패 사유",
+            "examples": [
+              "Field required"
+            ],
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "ValidationIssue",
+        "type": "object"
+      },
+      "VoiceProfileCreate": {
+        "examples": [
+          {
+            "consent_confirmed": true,
+            "consent_owner_name": "김지훈",
+            "name": "아빠 목소리",
+            "source_kind": "current_voice"
+          }
+        ],
+        "properties": {
+          "consent_confirmed": {
+            "description": "음성 소유자의 명시적 사용 동의 여부",
+            "title": "Consent Confirmed",
+            "type": "boolean"
+          },
+          "consent_owner_name": {
+            "description": "음성 사용에 동의한 음성 소유자 이름",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Consent Owner Name",
+            "type": "string"
+          },
+          "name": {
+            "description": "프론트에 표시할 프로필 이름",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source_kind": {
+            "description": "음성 출처. pre_illness=발병 전, family_donation=가족 기증, current_voice=현재 음성",
+            "enum": [
+              "pre_illness",
+              "family_donation",
+              "current_voice"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "source_kind",
+          "consent_owner_name",
+          "consent_confirmed"
+        ],
+        "title": "VoiceProfileCreate",
+        "type": "object"
+      },
+      "VoiceProfileRead": {
+        "properties": {
+          "consent_owner_name": {
+            "description": "동의한 음성 소유자 이름",
+            "title": "Consent Owner Name",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "프로필 생성 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "목소리 프로필 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "프로필 표시 이름",
+            "title": "Name",
+            "type": "string"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "인증 헤더로 조회할 미리듣기 WAV 상대 URL",
+            "title": "Preview Url"
+          },
+          "preview_version": {
+            "description": "미리듣기 재생성 버전",
+            "minimum": 0.0,
+            "title": "Preview Version",
+            "type": "integer"
+          },
+          "sample_count": {
+            "default": 0,
+            "description": "등록된 음성 샘플 수",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "source_kind": {
+            "description": "음성 출처",
+            "enum": [
+              "pre_illness",
+              "family_donation",
+              "current_voice"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "status": {
+            "description": "draft=샘플 구성 중, generating=미리듣기 생성 중, ready=사용 가능, failed=실패",
+            "enum": [
+              "draft",
+              "ready",
+              "generating",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "프로필 최종 변경 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "source_kind",
+          "consent_owner_name",
+          "status",
+          "preview_version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "VoiceProfileRead",
+        "type": "object"
+      },
+      "VoiceSampleRead": {
+        "properties": {
+          "created_at": {
+            "description": "샘플 등록 시각(UTC, ISO 8601)",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_ms": {
+            "description": "정규화된 음성 길이(ms)",
+            "minimum": 500.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "id": {
+            "description": "음성 샘플 UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "prompt_text": {
+            "description": "샘플에서 읽은 문장",
+            "title": "Prompt Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "prompt_text",
+          "duration_ms",
+          "created_at"
+        ],
+        "title": "VoiceSampleRead",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "description": "로컬 FastAPI와 프론트엔드가 공유하는 32자 이상의 API 키",
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "구음장애 부모의 발화를 **STT → LLM 문장 복원 → 감정 분류 → VoxCPM2**로 처리해 부모 고유 음색으로 전달하는 로컬 REST API입니다.\n\n모든 `/v1` 요청은 `X-API-Key`가 필요합니다. 생성 요청은 `202 Accepted`와 `status_url`을 반환하며, 프론트엔드는 1~2초 간격으로 작업을 조회해야 합니다.",
+    "title": "담음 API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "description": "인증 없이 프로세스가 HTTP 요청을 처리할 수 있는지 확인합니다.",
+        "operationId": "live",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLive"
+                }
+              }
+            },
+            "description": "프로세스 생존 상태"
+          }
+        },
+        "summary": "API 프로세스 생존 확인",
+        "tags": [
+          "상태 확인"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "인증 없이 현재 추론 backend, 모델 식별자와 대기 작업 수를 확인합니다. 모델 가중치의 사전 로딩을 의미하지는 않습니다.",
+        "operationId": "ready",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReady"
+                }
+              }
+            },
+            "description": "서버와 추론 큐 구성"
+          }
+        },
+        "summary": "추론 서버 준비 상태 확인",
+        "tags": [
+          "상태 확인"
+        ]
+      }
+    },
+    "/v1/books": {
+      "get": {
+        "description": "최근 수정 순으로 페이지 텍스트·이미지 URL·녹음 처리 상태를 함께 조회합니다.",
+        "operationId": "list_books",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BookRead"
+                  },
+                  "title": "Response List Books",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "동화책 목록"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 목록 조회",
+        "tags": [
+          "동화책"
+        ]
+      },
+      "post": {
+        "description": "제목·저자와 페이지별 원문을 한 번에 등록합니다. 페이지 번호는 책 안에서 중복될 수 없습니다.",
+        "operationId": "create_book",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRead"
+                }
+              }
+            },
+            "description": "페이지가 포함된 새 동화책"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 생성",
+        "tags": [
+          "동화책"
+        ]
+      }
+    },
+    "/v1/books/{book_id}": {
+      "delete": {
+        "description": "동화책, 페이지, 페이지 이미지와 모든 원본·재합성 음성을 함께 삭제합니다.",
+        "operationId": "delete_book",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 삭제",
+        "tags": [
+          "동화책"
+        ]
+      },
+      "get": {
+        "description": "프론트 페이지 뷰에 필요한 텍스트, 이미지와 녹음 결과를 페이지 순서대로 반환합니다.",
+        "operationId": "get_book",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRead"
+                }
+              }
+            },
+            "description": "페이지가 포함된 동화책 상세"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 상세 조회",
+        "tags": [
+          "동화책"
+        ]
+      }
+    },
+    "/v1/books/{book_id}/pages/{page_number}/audio": {
+      "get": {
+        "description": "source 쿼리로 정규화한 부모 원본과 또렷하게 재합성한 부모 음성을 전환해 재생합니다. 브라우저 오디오 탐색을 위해 HTTP Range를 지원합니다.",
+        "operationId": "get_page_audio",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1부터 시작하는 페이지 번호",
+            "in": "path",
+            "name": "page_number",
+            "required": true,
+            "schema": {
+              "description": "1부터 시작하는 페이지 번호",
+              "minimum": 1,
+              "title": "Page Number",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "재생할 음성 소스. original은 정규화 원본, clarified는 재합성 음성",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "clarified",
+              "description": "재생할 음성 소스. original은 정규화 원본, clarified는 재합성 음성",
+              "enum": [
+                "original",
+                "clarified"
+              ],
+              "title": "Source",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "전체 WAV 오디오",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "바이트 범위 요청 지원 여부",
+                "schema": {
+                  "example": "bytes",
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "description": "Range 요청 시 반환된 바이트 범위",
+                "schema": {
+                  "example": "bytes 0-65535/384044",
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-5dc2c\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "206": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Range 헤더에 해당하는 일부 WAV 오디오",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "바이트 범위 요청 지원 여부",
+                "schema": {
+                  "example": "bytes",
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "description": "Range 요청 시 반환된 바이트 범위",
+                "schema": {
+                  "example": "bytes 0-65535/384044",
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-5dc2c\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "416": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "요청한 바이트 범위가 파일 크기를 벗어남",
+            "headers": {
+              "Content-Range": {
+                "description": "선택 가능한 전체 파일 크기",
+                "schema": {
+                  "example": "*/384044",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "페이지 원본·재합성 음성 재생",
+        "tags": [
+          "동화책"
+        ]
+      }
+    },
+    "/v1/books/{book_id}/pages/{page_number}/image": {
+      "get": {
+        "description": "저장 시 메타데이터가 제거된 WebP 이미지를 반환합니다.",
+        "operationId": "get_page_image",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1부터 시작하는 페이지 번호",
+            "in": "path",
+            "name": "page_number",
+            "required": true,
+            "schema": {
+              "description": "1부터 시작하는 페이지 번호",
+              "minimum": 1,
+              "title": "Page Number",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "메타데이터가 제거된 WebP 페이지 이미지",
+            "headers": {
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-20f4\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 페이지 이미지 조회",
+        "tags": [
+          "동화책"
+        ]
+      },
+      "put": {
+        "description": "선택한 페이지의 이미지만 multipart/form-data로 등록하거나 교체합니다. 검증 후 메타데이터를 제거한 WebP로 저장합니다.",
+        "operationId": "put_page_image",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1부터 시작하는 페이지 번호",
+            "in": "path",
+            "name": "page_number",
+            "required": true,
+            "schema": {
+              "description": "1부터 시작하는 페이지 번호",
+              "minimum": 1,
+              "title": "Page Number",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_page_image"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "file_too_large",
+                    "message": "업로드 허용 크기를 초과했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "파일이 서버의 업로드 허용 크기를 초과함"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 페이지 이미지 등록·교체",
+        "tags": [
+          "동화책"
+        ]
+      }
+    },
+    "/v1/books/{book_id}/pages/{page_number}/recording": {
+      "put": {
+        "description": "선택한 페이지의 부모 음성을 등록합니다. 기존 녹음이 있으면 해당 페이지만 새 버전으로 교체하고 STT → LLM 문장 복원 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. 완료 여부는 응답의 status_url을 폴링합니다.",
+        "operationId": "put_page_recording",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1부터 시작하는 페이지 번호",
+            "in": "path",
+            "name": "page_number",
+            "required": true,
+            "schema": {
+              "description": "1부터 시작하는 페이지 번호",
+              "minimum": 1,
+              "title": "Page Number",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_page_recording"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            },
+            "description": "접수된 페이지 음성 처리 작업"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "profile_not_ready",
+                    "message": "미리듣기로 확인을 마친 목소리 프로필이 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "목소리 프로필의 미리듣기 확인이 완료되지 않음"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "file_too_large",
+                    "message": "업로드 허용 크기를 초과했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "파일이 서버의 업로드 허용 크기를 초과함"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "unsupported_audio",
+                    "message": "지원하지 않는 오디오 형식입니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "파일 시그니처가 지원 오디오 형식이 아님"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "queue_full",
+                    "message": "추론 작업 대기열이 가득 찼습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "로컬 추론 대기열이 가득 참. Retry-After 헤더 이후 재시도",
+            "headers": {
+              "Retry-After": {
+                "description": "재시도 전 대기할 초",
+                "schema": {
+                  "example": 30,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "페이지 음성 녹음·재녹음",
+        "tags": [
+          "동화책"
+        ]
+      }
+    },
+    "/v1/books/{book_id}/playback-manifest": {
+      "get": {
+        "description": "수동 페이지 넘김 화면에서 필요한 이미지·원본·재합성 URL과 녹음 버전을 한 번에 반환합니다. 프론트는 다음 페이지 오디오를 미리 로드해 전환 지연을 줄일 수 있습니다.",
+        "operationId": "get_playback_manifest",
+        "parameters": [
+          {
+            "description": "동화책 UUID",
+            "in": "path",
+            "name": "book_id",
+            "required": true,
+            "schema": {
+              "description": "동화책 UUID",
+              "title": "Book Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackManifest"
+                }
+              }
+            },
+            "description": "페이지 순서대로 정렬된 재생 매니페스트"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "동화책 재생 매니페스트 조회",
+        "tags": [
+          "동화책"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}": {
+      "get": {
+        "description": "202 응답에서 받은 작업을 조회합니다. queued·running 동안 1~2초 간격으로 재조회하고, succeeded 또는 failed에서 폴링을 종료합니다. failed이면 error_code와 error_message를 표시합니다.",
+        "operationId": "get_job",
+        "parameters": [
+          {
+            "description": "비동기 작업 UUID",
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "description": "비동기 작업 UUID",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "비동기 작업의 현재 상태와 오류 정보"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "비동기 작업 상태 조회",
+        "tags": [
+          "비동기 작업"
+        ]
+      }
+    },
+    "/v1/library": {
+      "get": {
+        "description": "동화책과 자장가를 최근 수정 순으로 통합 조회합니다. playable_url이 null이면 아직 재생할 수 없습니다.",
+        "operationId": "list_library",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryItem"
+                  },
+                  "title": "Response List Library",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "책·자장가 통합 콘텐츠 목록"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "콘텐츠 라이브러리 통합 조회",
+        "tags": [
+          "콘텐츠 라이브러리"
+        ]
+      }
+    },
+    "/v1/lullabies": {
+      "get": {
+        "description": "최근 수정 순으로 생성 상태, 반복·타이머 설정과 재생 URL을 조회합니다.",
+        "operationId": "list_lullabies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LullabyRead"
+                  },
+                  "title": "Response List Lullabies",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "자장가 목록"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "자장가 목록 조회",
+        "tags": [
+          "자장가"
+        ]
+      },
+      "post": {
+        "description": "준비된 목소리 프로필로 가사를 낭독한 자장가 WAV를 비동기로 생성합니다. repeat_count와 timer_minutes는 프론트 재생 루틴에 전달되는 설정입니다.",
+        "operationId": "create_lullaby",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LullabyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            },
+            "description": "접수된 자장가 생성 작업"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "profile_not_ready",
+                    "message": "미리듣기로 확인을 마친 목소리 프로필이 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "목소리 프로필의 미리듣기 확인이 완료되지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "queue_full",
+                    "message": "추론 작업 대기열이 가득 찼습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "로컬 추론 대기열이 가득 참. Retry-After 헤더 이후 재시도",
+            "headers": {
+              "Retry-After": {
+                "description": "재시도 전 대기할 초",
+                "schema": {
+                  "example": 30,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "부모 음색 자장가 생성",
+        "tags": [
+          "자장가"
+        ]
+      }
+    },
+    "/v1/lullabies/{lullaby_id}": {
+      "delete": {
+        "description": "자장가 메타데이터와 생성된 음성 파일을 함께 삭제합니다.",
+        "operationId": "delete_lullaby",
+        "parameters": [
+          {
+            "description": "자장가 UUID",
+            "in": "path",
+            "name": "lullaby_id",
+            "required": true,
+            "schema": {
+              "description": "자장가 UUID",
+              "title": "Lullaby Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "자장가 삭제",
+        "tags": [
+          "자장가"
+        ]
+      },
+      "get": {
+        "description": "자장가 생성 상태와 프론트 재생 루틴 설정을 조회합니다.",
+        "operationId": "get_lullaby",
+        "parameters": [
+          {
+            "description": "자장가 UUID",
+            "in": "path",
+            "name": "lullaby_id",
+            "required": true,
+            "schema": {
+              "description": "자장가 UUID",
+              "title": "Lullaby Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LullabyRead"
+                }
+              }
+            },
+            "description": "자장가 상세"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "자장가 상세 조회",
+        "tags": [
+          "자장가"
+        ]
+      }
+    },
+    "/v1/lullabies/{lullaby_id}/audio": {
+      "get": {
+        "description": "생성이 완료된 자장가 WAV를 Range 요청 가능한 형태로 반환합니다.",
+        "operationId": "get_lullaby_audio",
+        "parameters": [
+          {
+            "description": "자장가 UUID",
+            "in": "path",
+            "name": "lullaby_id",
+            "required": true,
+            "schema": {
+              "description": "자장가 UUID",
+              "title": "Lullaby Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "전체 WAV 오디오",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "바이트 범위 요청 지원 여부",
+                "schema": {
+                  "example": "bytes",
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "description": "Range 요청 시 반환된 바이트 범위",
+                "schema": {
+                  "example": "bytes 0-65535/384044",
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-5dc2c\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "206": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Range 헤더에 해당하는 일부 WAV 오디오",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "바이트 범위 요청 지원 여부",
+                "schema": {
+                  "example": "bytes",
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "description": "Range 요청 시 반환된 바이트 범위",
+                "schema": {
+                  "example": "bytes 0-65535/384044",
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-5dc2c\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "416": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "요청한 바이트 범위가 파일 크기를 벗어남",
+            "headers": {
+              "Content-Range": {
+                "description": "선택 가능한 전체 파일 크기",
+                "schema": {
+                  "example": "*/384044",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "자장가 음성 재생",
+        "tags": [
+          "자장가"
+        ]
+      }
+    },
+    "/v1/voice-profiles": {
+      "get": {
+        "description": "최근 생성 순으로 프로필 상태, 샘플 수와 미리듣기 URL을 조회합니다.",
+        "operationId": "list_voice_profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VoiceProfileRead"
+                  },
+                  "title": "Response List Voice Profiles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "목소리 프로필 목록"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 프로필 목록 조회",
+        "tags": [
+          "목소리 프로필"
+        ]
+      },
+      "post": {
+        "description": "음성 출처와 소유자 동의를 기록한 초안 프로필을 생성합니다. 생성 후 음성 샘플 5~20개를 등록하고 미리듣기를 생성해야 사용할 수 있습니다.",
+        "operationId": "create_voice_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceProfileCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceProfileRead"
+                }
+              }
+            },
+            "description": "생성된 초안 목소리 프로필"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 프로필 생성",
+        "tags": [
+          "목소리 프로필"
+        ]
+      }
+    },
+    "/v1/voice-profiles/{profile_id}": {
+      "delete": {
+        "description": "프로필과 모든 원본·정규화 샘플·미리듣기 파일을 삭제합니다. 책 녹음이나 자장가에서 사용 중인 프로필은 먼저 연관 콘텐츠를 삭제해야 합니다.",
+        "operationId": "delete_voice_profile",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "profile_in_use",
+                    "message": "이 프로필을 사용한 책 녹음과 자장가를 먼저 삭제해야 합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "책 녹음이나 자장가가 프로필을 사용 중임"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 프로필 삭제",
+        "tags": [
+          "목소리 프로필"
+        ]
+      },
+      "get": {
+        "description": "프로필의 준비 상태, 샘플 수와 현재 미리듣기 버전을 조회합니다.",
+        "operationId": "get_voice_profile",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceProfileRead"
+                }
+              }
+            },
+            "description": "목소리 프로필 상세"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 프로필 상세 조회",
+        "tags": [
+          "목소리 프로필"
+        ]
+      }
+    },
+    "/v1/voice-profiles/{profile_id}/preview": {
+      "post": {
+        "description": "등록된 5~20개 샘플로 VoxCPM2 참조 음성을 만들고 요청 문장을 비동기로 합성합니다. 응답의 status_url을 폴링한 뒤 성공하면 preview_url을 재생합니다.",
+        "operationId": "generate_profile_preview",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            },
+            "description": "접수된 미리듣기 생성 작업"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "insufficient_samples",
+                    "message": "샘플 5~20개를 등록해야 합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "음성 샘플이 5개 미만이거나 20개를 초과함"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "queue_full",
+                    "message": "추론 작업 대기열이 가득 찼습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "로컬 추론 대기열이 가득 참. Retry-After 헤더 이후 재시도",
+            "headers": {
+              "Retry-After": {
+                "description": "재시도 전 대기할 초",
+                "schema": {
+                  "example": 30,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 프로필 미리듣기 생성·재생성",
+        "tags": [
+          "목소리 프로필"
+        ]
+      }
+    },
+    "/v1/voice-profiles/{profile_id}/preview/audio": {
+      "get": {
+        "description": "생성이 완료된 최신 미리듣기 WAV를 Range 요청 가능한 형태로 반환합니다.",
+        "operationId": "get_profile_preview_audio",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "전체 WAV 오디오",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "바이트 범위 요청 지원 여부",
+                "schema": {
+                  "example": "bytes",
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "description": "Range 요청 시 반환된 바이트 범위",
+                "schema": {
+                  "example": "bytes 0-65535/384044",
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-5dc2c\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "206": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Range 헤더에 해당하는 일부 WAV 오디오",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "바이트 범위 요청 지원 여부",
+                "schema": {
+                  "example": "bytes",
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "description": "Range 요청 시 반환된 바이트 범위",
+                "schema": {
+                  "example": "bytes 0-65535/384044",
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "브라우저 캐시 검증 값",
+                "schema": {
+                  "example": "\"18f00ab-5dc2c\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "416": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "요청한 바이트 범위가 파일 크기를 벗어남",
+            "headers": {
+              "Content-Range": {
+                "description": "선택 가능한 전체 파일 크기",
+                "schema": {
+                  "example": "*/384044",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 프로필 미리듣기 재생",
+        "tags": [
+          "목소리 프로필"
+        ]
+      }
+    },
+    "/v1/voice-profiles/{profile_id}/samples": {
+      "get": {
+        "description": "프로필에 등록된 샘플 문장과 음성 메타데이터를 조회합니다.",
+        "operationId": "list_voice_samples",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VoiceSampleRead"
+                  },
+                  "title": "Response List Voice Samples",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "목소리 학습 샘플 목록"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 학습 샘플 목록 조회",
+        "tags": [
+          "목소리 프로필"
+        ]
+      },
+      "post": {
+        "description": "샘플 문장과 해당 문장을 읽은 오디오를 multipart/form-data로 등록합니다. WAV·FLAC·OGG·MP3·M4A·WebM을 받아 16kHz mono WAV로 정규화합니다. 샘플을 변경하면 기존 미리듣기는 무효화됩니다.",
+        "operationId": "add_voice_sample",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_voice_sample"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSampleRead"
+                }
+              }
+            },
+            "description": "정규화 및 저장된 음성 샘플 메타데이터"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "sample_limit",
+                    "message": "샘플은 최대 20개까지 등록할 수 있습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "프로필의 샘플 개수가 20개에 도달함"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "file_too_large",
+                    "message": "업로드 허용 크기를 초과했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "파일이 서버의 업로드 허용 크기를 초과함"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "unsupported_audio",
+                    "message": "지원하지 않는 오디오 형식입니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "파일 시그니처가 지원 오디오 형식이 아님"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 학습 샘플 등록",
+        "tags": [
+          "목소리 프로필"
+        ]
+      }
+    },
+    "/v1/voice-profiles/{profile_id}/samples/{sample_id}": {
+      "delete": {
+        "description": "선택한 샘플만 삭제하고 기존 미리듣기를 무효화합니다.",
+        "operationId": "delete_voice_sample",
+        "parameters": [
+          {
+            "description": "목소리 프로필 UUID",
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "description": "목소리 프로필 UUID",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "음성 샘플 UUID",
+            "in": "path",
+            "name": "sample_id",
+            "required": true,
+            "schema": {
+              "description": "음성 샘플 UUID",
+              "title": "Sample Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "목소리 학습 샘플 삭제",
+        "tags": [
+          "목소리 프로필"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "로컬 FastAPI 서버",
+      "url": "http://127.0.0.1:8000"
+    }
+  ],
+  "tags": [
+    {
+      "description": "인증 없이 서버 생존 여부, 추론 backend와 대기 작업 수를 확인합니다.",
+      "name": "상태 확인"
+    },
+    {
+      "description": "음성 소유자의 동의를 기록하고 5~20개의 발병 전·가족 기증·현재 음성 샘플로 VoxCPM2 참조 프로필을 구성합니다. 샘플 변경 후에는 미리듣기를 다시 생성해야 합니다.",
+      "name": "목소리 프로필"
+    },
+    {
+      "description": "동화책 페이지 원문·이미지와 부모의 페이지별 녹음을 관리합니다. 녹음 요청은 STT → LLM 복원 → 감정 분류 → VoxCPM2 합성을 비동기로 실행합니다.",
+      "name": "동화책"
+    },
+    {
+      "description": "부모 음색으로 가사를 부드럽게 낭독한 WAV를 생성합니다. 반복과 타이머의 실제 재생 제어는 응답 설정을 사용해 프론트엔드에서 수행합니다.",
+      "name": "자장가"
+    },
+    {
+      "description": "책과 자장가를 하나의 목록으로 조회하고 재생 진입 URL을 제공합니다.",
+      "name": "콘텐츠 라이브러리"
+    },
+    {
+      "description": "202 Accepted 응답으로 생성된 작업을 1~2초 간격으로 조회합니다. succeeded 또는 failed에서 폴링을 종료합니다.",
+      "name": "비동기 작업"
+    }
+  ]
+}

@@ -136,6 +136,13 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         clarified = client.get(recording["clarified_url"], headers=HEADERS)
         assert clarified.status_code == 200
         assert clarified.headers["accept-ranges"] == "bytes"
+        partial = client.get(
+            recording["clarified_url"],
+            headers={**HEADERS, "Range": "bytes=0-31"},
+        )
+        assert partial.status_code == 206
+        assert len(partial.content) == 32
+        assert partial.headers["content-range"].startswith("bytes 0-31/")
 
         response = client.put(
             f"/v1/books/{book_id}/pages/1/recording",

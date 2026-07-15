@@ -91,6 +91,7 @@ uv run uvicorn app.main:create_app --factory \
 ```
 
 - Swagger UI: `http://127.0.0.1:8000/docs`
+- OpenAPI JSON: `http://127.0.0.1:8000/openapi.json`
 - 상태 확인: `http://127.0.0.1:8000/health/ready`
 - 모델 없이 API만 확인: `.env`에서 `DAMEUM_INFERENCE_BACKEND=mock`
 
@@ -125,7 +126,18 @@ const api = async (path: string, init: RequestInit = {}) =>
 
 HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미디어는 `fetch`로 인증 헤더를 붙여 받은 뒤 `Blob` URL로 재생하고, 사용이 끝난 URL은 `URL.revokeObjectURL()`로 해제하세요.
 
-상세 엔드포인트와 요청 순서는 [API 문서](docs/API.md)를 참고하세요.
+상세 엔드포인트, 오류 분기와 상태 전이는 [프론트엔드 연동 명세](docs/API.md)를 참고하세요.
+서버를 실행하지 않고 타입·클라이언트를 생성할 때는 커밋된
+[`docs/openapi.json`](docs/openapi.json)을 사용합니다.
+
+```bash
+# 백엔드 계약 변경 후 OpenAPI 스냅샷 갱신
+.venv/bin/python scripts/export_openapi.py
+
+# 프론트 저장소에서 TypeScript 타입 생성
+npx openapi-typescript /path/to/DAMEUM/docs/openapi.json \
+  --output src/api/dameum-schema.d.ts
+```
 
 ## 보안
 
@@ -145,6 +157,8 @@ HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미�
 ```bash
 uv run ruff check .
 uv run pytest -q
+.venv/bin/python scripts/export_openapi.py
+git diff --exit-code docs/openapi.json
 ```
 
 테스트는 유효/비유효 파일 업로드, 동의 검증, 프로필 생성과 미리듣기, 페이지 재녹음 버전 교체, STT→LLM→감정→TTS 작업, 재생 manifest, 자장가와 콘텐츠 라이브러리를 포함합니다.

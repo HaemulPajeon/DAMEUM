@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated, Literal
 
 from fastapi import (
     APIRouter,
@@ -8,9 +9,13 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Request,
     UploadFile,
     status,
+)
+from fastapi import (
+    Path as ApiPath,
 )
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
@@ -28,6 +33,24 @@ from app.models import (
     ProfileStatus,
     VoiceProfile,
     VoiceSample,
+)
+from app.openapi import (
+    AUDIO_FILE_RESPONSE,
+    COMMON_ERROR_RESPONSES,
+    FILE_TOO_LARGE_RESPONSE,
+    IMAGE_FILE_RESPONSE,
+    INSUFFICIENT_SAMPLES_RESPONSE,
+    NOT_FOUND_RESPONSE,
+    PROFILE_IN_USE_RESPONSE,
+    PROFILE_NOT_READY_RESPONSE,
+    QUEUE_FULL_RESPONSE,
+    SAMPLE_LIMIT_RESPONSE,
+    TAG_BOOKS,
+    TAG_JOBS,
+    TAG_LIBRARY,
+    TAG_LULLABIES,
+    TAG_PROFILES,
+    UNSUPPORTED_AUDIO_RESPONSE,
 )
 from app.schemas import (
     BookCreate,
@@ -48,7 +71,22 @@ from app.schemas import (
 )
 from app.security import require_api_key
 
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+ProfileId = Annotated[str, ApiPath(description="목소리 프로필 UUID")]
+SampleId = Annotated[str, ApiPath(description="음성 샘플 UUID")]
+BookId = Annotated[str, ApiPath(description="동화책 UUID")]
+PageNumber = Annotated[int, ApiPath(ge=1, description="1부터 시작하는 페이지 번호")]
+LullabyId = Annotated[str, ApiPath(description="자장가 UUID")]
+JobId = Annotated[str, ApiPath(description="비동기 작업 UUID")]
+AudioSource = Annotated[
+    Literal["original", "clarified"],
+    Query(description="재생할 음성 소스. original은 정규화 원본, clarified는 재합성 음성"),
+]
+
+router = APIRouter(
+    prefix="/v1",
+    dependencies=[Depends(require_api_key)],
+    responses=COMMON_ERROR_RESPONSES,
+)
 
 
 def not_found(resource: str) -> HTTPException:
@@ -207,7 +245,18 @@ def file_response(path_value: str | None, media_type: str) -> FileResponse:
     )
 
 
-@router.post("/voice-profiles", response_model=VoiceProfileRead, status_code=201)
+@router.post(
+    "/voice-profiles",
+    response_model=VoiceProfileRead,
+    status_code=201,
+    tags=[TAG_PROFILES],
+    summary="목소리 프로필 생성",
+    description=(
+        "음성 출처와 소유자 동의를 기록한 초안 프로필을 생성합니다. "
+        "생성 후 음성 샘플 5~20개를 등록하고 미리듣기를 생성해야 사용할 수 있습니다."
+    ),
+    response_description="생성된 초안 목소리 프로필",
+)
 async def create_voice_profile(
     payload: VoiceProfileCreate,
     session: AsyncSession = Depends(session_dependency),
@@ -219,7 +268,14 @@ async def create_voice_profile(
     return profile_read(profile)
 
 
-@router.get("/voice-profiles", response_model=list[VoiceProfileRead])
+@router.get(
+    "/voice-profiles",
+    response_model=list[VoiceProfileRead],
+    tags=[TAG_PROFILES],
+    summary="목소리 프로필 목록 조회",
+    description="최근 생성 순으로 프로필 상태, 샘플 수와 미리듣기 URL을 조회합니다.",
+    response_description="목소리 프로필 목록",
+)
 async def list_voice_profiles(
     session: AsyncSession = Depends(session_dependency),
 ) -> list[VoiceProfileRead]:
@@ -233,9 +289,17 @@ async def list_voice_profiles(
     return [profile_read(profile) for profile in profiles]
 
 
-@router.get("/voice-profiles/{profile_id}", response_model=VoiceProfileRead)
+@router.get(
+    "/voice-profiles/{profile_id}",
+    response_model=VoiceProfileRead,
+    tags=[TAG_PROFILES],
+    summary="목소리 프로필 상세 조회",
+    description="프로필의 준비 상태, 샘플 수와 현재 미리듣기 버전을 조회합니다.",
+    response_description="목소리 프로필 상세",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def get_voice_profile(
-    profile_id: str, session: AsyncSession = Depends(session_dependency)
+    profile_id: ProfileId, session: AsyncSession = Depends(session_dependency)
 ) -> VoiceProfileRead:
     return profile_read(await get_profile_with_samples(session, profile_id))
 
@@ -244,12 +308,31 @@ async def get_voice_profile(
     "/voice-profiles/{profile_id}/samples",
     response_model=VoiceSampleRead,
     status_code=201,
+    tags=[TAG_PROFILES],
+    summary="목소리 학습 샘플 등록",
+    description=(
+        "샘플 문장과 해당 문장을 읽은 오디오를 multipart/form-data로 등록합니다. "
+        "WAV·FLAC·OGG·MP3·M4A·WebM을 받아 16kHz mono WAV로 정규화합니다. "
+        "샘플을 변경하면 기존 미리듣기는 무효화됩니다."
+    ),
+    response_description="정규화 및 저장된 음성 샘플 메타데이터",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: SAMPLE_LIMIT_RESPONSE,
+        413: FILE_TOO_LARGE_RESPONSE,
+        415: UNSUPPORTED_AUDIO_RESPONSE,
+    },
 )
 async def add_voice_sample(
     request: Request,
-    profile_id: str,
-    prompt_text: str = Form(min_length=1, max_length=500),
-    audio: UploadFile = File(),
+    profile_id: ProfileId,
+    prompt_text: str = Form(
+        min_length=1,
+        max_length=500,
+        description="업로드한 음성에서 실제로 읽은 문장",
+        examples=["오늘도 너와 함께해서 행복해."],
+    ),
+    audio: UploadFile = File(description="최대 25MB, 0.5~180초의 음성 파일"),
     session: AsyncSession = Depends(session_dependency),
 ) -> VoiceSampleRead:
     profile = await get_profile_with_samples(session, profile_id)
@@ -279,19 +362,34 @@ async def add_voice_sample(
     return VoiceSampleRead.model_validate(sample)
 
 
-@router.get("/voice-profiles/{profile_id}/samples", response_model=list[VoiceSampleRead])
+@router.get(
+    "/voice-profiles/{profile_id}/samples",
+    response_model=list[VoiceSampleRead],
+    tags=[TAG_PROFILES],
+    summary="목소리 학습 샘플 목록 조회",
+    description="프로필에 등록된 샘플 문장과 음성 메타데이터를 조회합니다.",
+    response_description="목소리 학습 샘플 목록",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def list_voice_samples(
-    profile_id: str, session: AsyncSession = Depends(session_dependency)
+    profile_id: ProfileId, session: AsyncSession = Depends(session_dependency)
 ) -> list[VoiceSampleRead]:
     profile = await get_profile_with_samples(session, profile_id)
     return [VoiceSampleRead.model_validate(sample) for sample in profile.samples]
 
 
-@router.delete("/voice-profiles/{profile_id}/samples/{sample_id}", status_code=204)
+@router.delete(
+    "/voice-profiles/{profile_id}/samples/{sample_id}",
+    status_code=204,
+    tags=[TAG_PROFILES],
+    summary="목소리 학습 샘플 삭제",
+    description="선택한 샘플만 삭제하고 기존 미리듣기를 무효화합니다.",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def delete_voice_sample(
     request: Request,
-    profile_id: str,
-    sample_id: str,
+    profile_id: ProfileId,
+    sample_id: SampleId,
     session: AsyncSession = Depends(session_dependency),
 ) -> None:
     sample = await session.scalar(
@@ -311,10 +409,20 @@ async def delete_voice_sample(
     request.app.state.media_store.delete(old_preview)
 
 
-@router.delete("/voice-profiles/{profile_id}", status_code=204)
+@router.delete(
+    "/voice-profiles/{profile_id}",
+    status_code=204,
+    tags=[TAG_PROFILES],
+    summary="목소리 프로필 삭제",
+    description=(
+        "프로필과 모든 원본·정규화 샘플·미리듣기 파일을 삭제합니다. "
+        "책 녹음이나 자장가에서 사용 중인 프로필은 먼저 연관 콘텐츠를 삭제해야 합니다."
+    ),
+    responses={404: NOT_FOUND_RESPONSE, 409: PROFILE_IN_USE_RESPONSE},
+)
 async def delete_voice_profile(
     request: Request,
-    profile_id: str,
+    profile_id: ProfileId,
     session: AsyncSession = Depends(session_dependency),
 ) -> None:
     profile = await get_profile_with_samples(session, profile_id)
@@ -345,10 +453,22 @@ async def delete_voice_profile(
     "/voice-profiles/{profile_id}/preview",
     response_model=JobAccepted,
     status_code=202,
+    tags=[TAG_PROFILES],
+    summary="목소리 프로필 미리듣기 생성·재생성",
+    description=(
+        "등록된 5~20개 샘플로 VoxCPM2 참조 음성을 만들고 요청 문장을 비동기로 합성합니다. "
+        "응답의 status_url을 폴링한 뒤 성공하면 preview_url을 재생합니다."
+    ),
+    response_description="접수된 미리듣기 생성 작업",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: INSUFFICIENT_SAMPLES_RESPONSE,
+        503: QUEUE_FULL_RESPONSE,
+    },
 )
 async def generate_profile_preview(
     request: Request,
-    profile_id: str,
+    profile_id: ProfileId,
     payload: PreviewRequest,
     session: AsyncSession = Depends(session_dependency),
 ) -> JobAccepted:
@@ -372,9 +492,16 @@ async def generate_profile_preview(
     return job_accepted(job)
 
 
-@router.get("/voice-profiles/{profile_id}/preview/audio")
+@router.get(
+    "/voice-profiles/{profile_id}/preview/audio",
+    response_class=FileResponse,
+    tags=[TAG_PROFILES],
+    summary="목소리 프로필 미리듣기 재생",
+    description="생성이 완료된 최신 미리듣기 WAV를 Range 요청 가능한 형태로 반환합니다.",
+    responses=AUDIO_FILE_RESPONSE,
+)
 async def get_profile_preview_audio(
-    profile_id: str, session: AsyncSession = Depends(session_dependency)
+    profile_id: ProfileId, session: AsyncSession = Depends(session_dependency)
 ) -> FileResponse:
     profile = await session.get(VoiceProfile, profile_id)
     if profile is None:
@@ -382,7 +509,18 @@ async def get_profile_preview_audio(
     return file_response(profile.preview_path, "audio/wav")
 
 
-@router.post("/books", response_model=BookRead, status_code=201)
+@router.post(
+    "/books",
+    response_model=BookRead,
+    status_code=201,
+    tags=[TAG_BOOKS],
+    summary="동화책 생성",
+    description=(
+        "제목·저자와 페이지별 원문을 한 번에 등록합니다. "
+        "페이지 번호는 책 안에서 중복될 수 없습니다."
+    ),
+    response_description="페이지가 포함된 새 동화책",
+)
 async def create_book(
     payload: BookCreate, session: AsyncSession = Depends(session_dependency)
 ) -> BookRead:
@@ -393,7 +531,14 @@ async def create_book(
     return book_read(await get_book_with_pages(session, book.id))
 
 
-@router.get("/books", response_model=list[BookRead])
+@router.get(
+    "/books",
+    response_model=list[BookRead],
+    tags=[TAG_BOOKS],
+    summary="동화책 목록 조회",
+    description="최근 수정 순으로 페이지 텍스트·이미지 URL·녹음 처리 상태를 함께 조회합니다.",
+    response_description="동화책 목록",
+)
 async def list_books(session: AsyncSession = Depends(session_dependency)) -> list[BookRead]:
     books = (
         (
@@ -409,15 +554,34 @@ async def list_books(session: AsyncSession = Depends(session_dependency)) -> lis
     return [book_read(book) for book in books]
 
 
-@router.get("/books/{book_id}", response_model=BookRead)
-async def get_book(book_id: str, session: AsyncSession = Depends(session_dependency)) -> BookRead:
+@router.get(
+    "/books/{book_id}",
+    response_model=BookRead,
+    tags=[TAG_BOOKS],
+    summary="동화책 상세 조회",
+    description=(
+        "프론트 페이지 뷰에 필요한 텍스트, 이미지와 녹음 결과를 페이지 순서대로 반환합니다."
+    ),
+    response_description="페이지가 포함된 동화책 상세",
+    responses={404: NOT_FOUND_RESPONSE},
+)
+async def get_book(
+    book_id: BookId, session: AsyncSession = Depends(session_dependency)
+) -> BookRead:
     return book_read(await get_book_with_pages(session, book_id))
 
 
-@router.delete("/books/{book_id}", status_code=204)
+@router.delete(
+    "/books/{book_id}",
+    status_code=204,
+    tags=[TAG_BOOKS],
+    summary="동화책 삭제",
+    description="동화책, 페이지, 페이지 이미지와 모든 원본·재합성 음성을 함께 삭제합니다.",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def delete_book(
     request: Request,
-    book_id: str,
+    book_id: BookId,
     session: AsyncSession = Depends(session_dependency),
 ) -> None:
     book = await get_book_with_pages(session, book_id)
@@ -438,12 +602,22 @@ async def delete_book(
         request.app.state.media_store.delete(path)
 
 
-@router.put("/books/{book_id}/pages/{page_number}/image", status_code=204)
+@router.put(
+    "/books/{book_id}/pages/{page_number}/image",
+    status_code=204,
+    tags=[TAG_BOOKS],
+    summary="동화책 페이지 이미지 등록·교체",
+    description=(
+        "선택한 페이지의 이미지만 multipart/form-data로 등록하거나 교체합니다. "
+        "검증 후 메타데이터를 제거한 WebP로 저장합니다."
+    ),
+    responses={404: NOT_FOUND_RESPONSE, 413: FILE_TOO_LARGE_RESPONSE},
+)
 async def put_page_image(
     request: Request,
-    book_id: str,
-    page_number: int,
-    image: UploadFile = File(),
+    book_id: BookId,
+    page_number: PageNumber,
+    image: UploadFile = File(description="최대 10MB, 4천만 픽셀 이하의 페이지 이미지"),
     session: AsyncSession = Depends(session_dependency),
 ) -> None:
     page = await get_page(session, book_id, page_number)
@@ -454,10 +628,17 @@ async def put_page_image(
     request.app.state.media_store.delete(old_path)
 
 
-@router.get("/books/{book_id}/pages/{page_number}/image")
+@router.get(
+    "/books/{book_id}/pages/{page_number}/image",
+    response_class=FileResponse,
+    tags=[TAG_BOOKS],
+    summary="동화책 페이지 이미지 조회",
+    description="저장 시 메타데이터가 제거된 WebP 이미지를 반환합니다.",
+    responses=IMAGE_FILE_RESPONSE,
+)
 async def get_page_image(
-    book_id: str,
-    page_number: int,
+    book_id: BookId,
+    page_number: PageNumber,
     session: AsyncSession = Depends(session_dependency),
 ) -> FileResponse:
     page = await get_page(session, book_id, page_number)
@@ -468,13 +649,29 @@ async def get_page_image(
     "/books/{book_id}/pages/{page_number}/recording",
     response_model=JobAccepted,
     status_code=202,
+    tags=[TAG_BOOKS],
+    summary="페이지 음성 녹음·재녹음",
+    description=(
+        "선택한 페이지의 부모 음성을 등록합니다. 기존 녹음이 있으면 "
+        "해당 페이지만 새 버전으로 교체하고 "
+        "STT → LLM 문장 복원 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. "
+        "완료 여부는 응답의 status_url을 폴링합니다."
+    ),
+    response_description="접수된 페이지 음성 처리 작업",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: PROFILE_NOT_READY_RESPONSE,
+        413: FILE_TOO_LARGE_RESPONSE,
+        415: UNSUPPORTED_AUDIO_RESPONSE,
+        503: QUEUE_FULL_RESPONSE,
+    },
 )
 async def put_page_recording(
     request: Request,
-    book_id: str,
-    page_number: int,
-    profile_id: str = Form(),
-    audio: UploadFile = File(),
+    book_id: BookId,
+    page_number: PageNumber,
+    profile_id: str = Form(description="미리듣기 확인이 완료된 목소리 프로필 UUID"),
+    audio: UploadFile = File(description="최대 25MB, 0.5~180초의 페이지 녹음"),
     session: AsyncSession = Depends(session_dependency),
 ) -> JobAccepted:
     page = await get_page(session, book_id, page_number)
@@ -528,18 +725,23 @@ async def put_page_recording(
     return job_accepted(job)
 
 
-@router.get("/books/{book_id}/pages/{page_number}/audio")
+@router.get(
+    "/books/{book_id}/pages/{page_number}/audio",
+    response_class=FileResponse,
+    tags=[TAG_BOOKS],
+    summary="페이지 원본·재합성 음성 재생",
+    description=(
+        "source 쿼리로 정규화한 부모 원본과 또렷하게 재합성한 부모 음성을 전환해 재생합니다. "
+        "브라우저 오디오 탐색을 위해 HTTP Range를 지원합니다."
+    ),
+    responses=AUDIO_FILE_RESPONSE,
+)
 async def get_page_audio(
-    book_id: str,
-    page_number: int,
-    source: str = "clarified",
+    book_id: BookId,
+    page_number: PageNumber,
+    source: AudioSource = "clarified",
     session: AsyncSession = Depends(session_dependency),
 ) -> FileResponse:
-    if source not in {"original", "clarified"}:
-        raise HTTPException(
-            status_code=422,
-            detail={"code": "invalid_source", "message": "source는 original 또는 clarified입니다"},
-        )
     page = await get_page(session, book_id, page_number)
     if page.recording is None:
         raise not_found("페이지 녹음")
@@ -547,9 +749,20 @@ async def get_page_audio(
     return file_response(path, "audio/wav")
 
 
-@router.get("/books/{book_id}/playback-manifest", response_model=PlaybackManifest)
+@router.get(
+    "/books/{book_id}/playback-manifest",
+    response_model=PlaybackManifest,
+    tags=[TAG_BOOKS],
+    summary="동화책 재생 매니페스트 조회",
+    description=(
+        "수동 페이지 넘김 화면에서 필요한 이미지·원본·재합성 URL과 녹음 버전을 한 번에 반환합니다. "
+        "프론트는 다음 페이지 오디오를 미리 로드해 전환 지연을 줄일 수 있습니다."
+    ),
+    response_description="페이지 순서대로 정렬된 재생 매니페스트",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def get_playback_manifest(
-    book_id: str, session: AsyncSession = Depends(session_dependency)
+    book_id: BookId, session: AsyncSession = Depends(session_dependency)
 ) -> PlaybackManifest:
     book = await get_book_with_pages(session, book_id)
     pages = []
@@ -580,7 +793,23 @@ async def get_playback_manifest(
     return PlaybackManifest(book_id=book.id, title=book.title, pages=pages)
 
 
-@router.post("/lullabies", response_model=JobAccepted, status_code=202)
+@router.post(
+    "/lullabies",
+    response_model=JobAccepted,
+    status_code=202,
+    tags=[TAG_LULLABIES],
+    summary="부모 음색 자장가 생성",
+    description=(
+        "준비된 목소리 프로필로 가사를 낭독한 자장가 WAV를 비동기로 생성합니다. "
+        "repeat_count와 timer_minutes는 프론트 재생 루틴에 전달되는 설정입니다."
+    ),
+    response_description="접수된 자장가 생성 작업",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: PROFILE_NOT_READY_RESPONSE,
+        503: QUEUE_FULL_RESPONSE,
+    },
+)
 async def create_lullaby(
     request: Request,
     payload: LullabyCreate,
@@ -602,7 +831,14 @@ async def create_lullaby(
     return job_accepted(job)
 
 
-@router.get("/lullabies", response_model=list[LullabyRead])
+@router.get(
+    "/lullabies",
+    response_model=list[LullabyRead],
+    tags=[TAG_LULLABIES],
+    summary="자장가 목록 조회",
+    description="최근 수정 순으로 생성 상태, 반복·타이머 설정과 재생 URL을 조회합니다.",
+    response_description="자장가 목록",
+)
 async def list_lullabies(
     session: AsyncSession = Depends(session_dependency),
 ) -> list[LullabyRead]:
@@ -610,9 +846,17 @@ async def list_lullabies(
     return [lullaby_read(item) for item in items]
 
 
-@router.get("/lullabies/{lullaby_id}", response_model=LullabyRead)
+@router.get(
+    "/lullabies/{lullaby_id}",
+    response_model=LullabyRead,
+    tags=[TAG_LULLABIES],
+    summary="자장가 상세 조회",
+    description="자장가 생성 상태와 프론트 재생 루틴 설정을 조회합니다.",
+    response_description="자장가 상세",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def get_lullaby(
-    lullaby_id: str, session: AsyncSession = Depends(session_dependency)
+    lullaby_id: LullabyId, session: AsyncSession = Depends(session_dependency)
 ) -> LullabyRead:
     lullaby = await session.get(Lullaby, lullaby_id)
     if lullaby is None:
@@ -620,9 +864,16 @@ async def get_lullaby(
     return lullaby_read(lullaby)
 
 
-@router.get("/lullabies/{lullaby_id}/audio")
+@router.get(
+    "/lullabies/{lullaby_id}/audio",
+    response_class=FileResponse,
+    tags=[TAG_LULLABIES],
+    summary="자장가 음성 재생",
+    description="생성이 완료된 자장가 WAV를 Range 요청 가능한 형태로 반환합니다.",
+    responses=AUDIO_FILE_RESPONSE,
+)
 async def get_lullaby_audio(
-    lullaby_id: str, session: AsyncSession = Depends(session_dependency)
+    lullaby_id: LullabyId, session: AsyncSession = Depends(session_dependency)
 ) -> FileResponse:
     lullaby = await session.get(Lullaby, lullaby_id)
     if lullaby is None:
@@ -630,10 +881,17 @@ async def get_lullaby_audio(
     return file_response(lullaby.audio_path, "audio/wav")
 
 
-@router.delete("/lullabies/{lullaby_id}", status_code=204)
+@router.delete(
+    "/lullabies/{lullaby_id}",
+    status_code=204,
+    tags=[TAG_LULLABIES],
+    summary="자장가 삭제",
+    description="자장가 메타데이터와 생성된 음성 파일을 함께 삭제합니다.",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def delete_lullaby(
     request: Request,
-    lullaby_id: str,
+    lullaby_id: LullabyId,
     session: AsyncSession = Depends(session_dependency),
 ) -> None:
     lullaby = await session.get(Lullaby, lullaby_id)
@@ -645,7 +903,17 @@ async def delete_lullaby(
     request.app.state.media_store.delete(path)
 
 
-@router.get("/library", response_model=list[LibraryItem])
+@router.get(
+    "/library",
+    response_model=list[LibraryItem],
+    tags=[TAG_LIBRARY],
+    summary="콘텐츠 라이브러리 통합 조회",
+    description=(
+        "동화책과 자장가를 최근 수정 순으로 통합 조회합니다. "
+        "playable_url이 null이면 아직 재생할 수 없습니다."
+    ),
+    response_description="책·자장가 통합 콘텐츠 목록",
+)
 async def list_library(session: AsyncSession = Depends(session_dependency)) -> list[LibraryItem]:
     books = (
         (
@@ -701,8 +969,20 @@ async def list_library(session: AsyncSession = Depends(session_dependency)) -> l
     return sorted(items, key=lambda item: item.updated_at, reverse=True)
 
 
-@router.get("/jobs/{job_id}", response_model=JobRead)
-async def get_job(job_id: str, session: AsyncSession = Depends(session_dependency)) -> JobRead:
+@router.get(
+    "/jobs/{job_id}",
+    response_model=JobRead,
+    tags=[TAG_JOBS],
+    summary="비동기 작업 상태 조회",
+    description=(
+        "202 응답에서 받은 작업을 조회합니다. queued·running 동안 1~2초 간격으로 재조회하고, "
+        "succeeded 또는 failed에서 폴링을 종료합니다. failed이면 "
+        "error_code와 error_message를 표시합니다."
+    ),
+    response_description="비동기 작업의 현재 상태와 오류 정보",
+    responses={404: NOT_FOUND_RESPONSE},
+)
+async def get_job(job_id: JobId, session: AsyncSession = Depends(session_dependency)) -> JobRead:
     job = await session.get(Job, job_id)
     if job is None:
         raise not_found("작업")
