@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.config import Settings
+from app.inference import InferencePipeline
 from app.main import create_app
 
 API_KEY = "test-api-key-that-is-longer-than-thirty-two-bytes"
@@ -205,3 +206,43 @@ def test_upload_and_consent_validation(tmp_path: Path) -> None:
             json={},
         )
         assert response.status_code == 409
+
+
+def test_real_model_label_order_and_original_format(monkeypatch, tmp_path: Path) -> None:
+    assert InferencePipeline._normalize_emotion("LABEL_0") == "기쁨"
+    assert InferencePipeline._normalize_emotion("LABEL_1") == "슬픔"
+    assert InferencePipeline._normalize_emotion("LABEL_2") == "분노"
+    assert InferencePipeline._normalize_emotion("LABEL_3") == "불안"
+    assert InferencePipeline._normalize_emotion("LABEL_4") == "당황"
+    assert InferencePipeline._normalize_emotion("LABEL_5") == "상처"
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": "달님이 환하게 웃었어요"}}]}
+
+    class FakeClient:
+        def __init__(self, **_: object):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+        def post(self, *_: object, **__: object) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr("app.inference.httpx.Client", FakeClient)
+    settings = Settings(
+        environment="test",
+        api_key=API_KEY,
+        data_dir=tmp_path,
+        inference_backend="real",
+    )
+    pipeline = InferencePipeline(settings)
+    expected = "달님이 환하게 웃었어요."
+    assert pipeline.correct_sentence("달님이 환하게 우떠요", expected) == expected

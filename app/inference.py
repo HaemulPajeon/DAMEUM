@@ -61,10 +61,12 @@ class InferencePipeline:
             return expected_text or transcript
         context = expected_text or "제공되지 않음"
         prompt = (
-            "구음장애가 있는 한국어 화자의 STT 결과를 자연스럽고 또렷한 한 문장으로 복원하세요. "
-            "화자의 의도와 고유 표현을 보존하고 내용을 새로 만들지 마세요. "
-            "동화책 원문이 제공되면 발화 의도와 일치하는 범위에서만 참고하세요. "
-            "결과 문장만 출력하세요.\n"
+            "구음장애가 있는 한국어 화자의 STT 오류를 복원하세요. "
+            "동화책 원문이 제공되고 STT가 그 원문을 읽으려 한 발화라면, "
+            "맞춤법과 어미를 포함해 동화책 원문을 한 글자도 바꾸지 말고 출력하세요. "
+            "서로 다른 내용일 때만 STT의 의도를 보존해 최소한으로 교정하세요. "
+            "예시: 원문 '달님이 환하게 웃었어요.', STT '달님이 환하게 우떠요'이면 "
+            "'달님이 환하게 웃었어요.'를 출력합니다. 설명과 따옴표 없이 결과 문장만 출력하세요.\n"
             f"동화책 원문: {context}\nSTT 결과: {transcript}"
         )
         with httpx.Client(timeout=httpx.Timeout(120.0, connect=5.0)) as client:
@@ -77,7 +79,9 @@ class InferencePipeline:
                         {
                             "role": "system",
                             "content": (
-                                "당신은 한국어 발화 복원기입니다. 설명 없이 복원 문장만 답합니다."
+                                "당신은 한국어 동화책 낭독 발화 복원기입니다. "
+                                "원문과 같은 의도의 손상된 STT는 원문 그대로 복원하고, "
+                                "설명 없이 복원 문장만 답합니다."
                             ),
                         },
                         {"role": "user", "content": prompt},
@@ -94,6 +98,12 @@ class InferencePipeline:
         corrected = corrected.strip('"').strip()
         if not corrected or len(corrected) > 3000:
             raise RuntimeError("문장 교정 결과가 유효하지 않습니다")
+        if expected_text:
+            compact_corrected = re.sub(r"[^0-9A-Za-z가-힣]", "", corrected)
+            compact_expected = re.sub(r"[^0-9A-Za-z가-힣]", "", expected_text)
+            if compact_corrected == compact_expected:
+                # 내용이 일치하면 원문의 문장부호와 띄어쓰기까지 보존한다.
+                return expected_text.strip()
         return corrected
 
     def classify_emotion(self, text: str) -> tuple[str, float]:
@@ -167,11 +177,11 @@ class InferencePipeline:
         normalized = label.lower().replace("label_", "")
         aliases = {
             "0": "기쁨",
-            "1": "당황",
+            "1": "슬픔",
             "2": "분노",
             "3": "불안",
-            "4": "상처",
-            "5": "슬픔",
+            "4": "당황",
+            "5": "상처",
             "joy": "기쁨",
             "surprise": "당황",
             "anger": "분노",
