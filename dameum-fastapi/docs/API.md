@@ -124,7 +124,30 @@ JSON 오류는 같은 envelope을 사용합니다. 단, 잘못된 오디오 `Ran
 | `503` | `queue_full` | `Retry-After` 초 뒤 제한적으로 재시도 |
 | `503` | `seedvc_runtime_unavailable` | `scripts.setup_seedvc` 실행 후 상태 API 재확인 |
 
-## 4. 비동기 작업 계약
+## 4. 브라우저 녹음 계약
+
+마이크 권한 요청과 녹음 시작·정지는 프론트엔드에서 수행합니다. 백엔드는
+`GET /v1/recording-capabilities`로 현재 업로드 제한, `MediaRecorder.isTypeSupported()` 검사 순서,
+권장 `getUserMedia` 제약과 두 업로드 경로를 반환합니다. 값을 프론트에 중복 하드코딩하지 않습니다.
+
+| operationId | Method / Path | 성공 | 업무 규칙 |
+|---|---|---|---|
+| `get_recording_capabilities` | `GET /v1/recording-capabilities` | `200` | MIME 우선순위·0.5~180초·25MB 제한·업로드 계약 |
+
+- Chrome·Edge는 우선 `audio/webm;codecs=opus`를 사용합니다.
+- Safari가 WebM/Opus를 지원하지 않으면 `audio/mp4;codecs=mp4a.40.2`를 사용합니다.
+- `MediaRecorder.start(1000)`으로 1초마다 chunk를 받아 브라우저 메모리 급증을 막습니다.
+- 정지 시 모든 `MediaStreamTrack`을 `stop()`해 마이크 표시와 장치 점유를 해제합니다.
+- 녹음 중 페이지를 이탈하면 확인 UI를 표시하고, 업로드 완료 전 Blob을 폐기하지 않습니다.
+- 프로필 샘플은 `prompt_text`, 동화 페이지는 ready 상태의 `profile_id`를 같이 보냅니다.
+- `FormData` 전송 시 `Content-Type`을 직접 지정하지 않습니다.
+
+브라우저가 보낸 MIME이나 확장자는 신뢰하지 않습니다. 서버는 WAV·FLAC·Ogg·MP3·MP4/M4A·WebM
+시그니처를 확인하고 실제 디코딩에 성공한 입력만 16kHz mono PCM WAV로 저장합니다. 녹음 Blob은
+`POST /v1/voice-profiles/{profile_id}/samples`와
+`PUT /v1/books/{book_id}/pages/{page_number}/recording`에 그대로 사용할 수 있습니다.
+
+## 5. 비동기 작업 계약
 
 다음 API는 모델 추론을 기다리지 않고 `202 Accepted`를 반환합니다.
 
@@ -159,7 +182,7 @@ queued -> running -> succeeded
 `succeeded` 직후 결과 URL을 추측하지 말고 프로필·책·자장가 상세을 다시 조회합니다. 페이지 재녹음은
 `version`이 증가하며 늦게 끝난 과거 작업이 최신 결과를 덮어쓰지 않습니다.
 
-## 5. 목소리 프로필
+## 6. 목소리 프로필
 
 권장 연동 순서는 다음과 같습니다.
 
@@ -184,7 +207,7 @@ queued -> running -> succeeded
 `source_kind` enum은 `pre_illness`(발병 전), `family_donation`(가족 기증),
 `current_voice`(현재 음성)입니다. 프로필 상태는 `draft`, `generating`, `ready`, `failed`입니다.
 
-## 6. 동화책·페이지 녹음
+## 7. 동화책·페이지 녹음
 
 | operationId | Method / Path | 성공 | 업무 규칙 |
 |---|---|---|---|
@@ -214,7 +237,7 @@ queued -> running -> succeeded
 선택값으로 사용합니다. `prefetch_next=true`와 `transition_budget_ms=300`은 300ms 이내 전환 목표를
 위한 프론트 힌트이지, 서버가 300ms 내 추론을 끝낸다는 의미가 아닙니다.
 
-## 7. 미디어 재생
+## 8. 미디어 재생
 
 HTML `<audio src>`와 `<img src>`는 `X-API-Key`를 직접 추가할 수 없으므로 인증 `fetch`로 Blob을
 받아 Object URL로 연결합니다.
@@ -233,7 +256,7 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 헤더를 사용하며 응답의 `Accept-Ranges`, `Content-Range`, `ETag`를 활용할 수 있습니다. 이때 CORS에
 허용된 로컬 origin에서만 호출합니다.
 
-## 8. 자장가·콘텐츠 라이브러리
+## 9. 자장가·콘텐츠 라이브러리
 
 | operationId | Method / Path | 성공 | 업무 규칙 |
 |---|---|---|---|
@@ -250,14 +273,14 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 아니라 부모 음색의 부드러운 낭독입니다. `playable_url=null`이면 아직 재생 버튼을 활성화하지
 않고, 라이브러리 삭제는 각 항목의 `delete_url`에 `DELETE`를 요청합니다.
 
-## 9. Seed-VC 무반주 가창 자장가
+## 10. Seed-VC 무반주 가창 자장가
 
 기존 `/v1/lullabies`는 VoxCPM2 낭독이며 아래 API와 데이터 모델을 공유하지 않습니다. 프론트는
 먼저 카탈로그에서 원곡을 재생하고 `source_id`와 ready 프로필을 선택해 변환을 요청합니다.
 
 | operationId | Method / Path | 성공 | 업무 규칙 |
 |---|---|---|---|
-| `list_singing_sources` | `GET /v1/singing-lullabies/catalog` | `200` | 전래 무반주 원곡·가사·라이선스 |
+| `list_singing_sources` | `GET /v1/singing-lullabies/catalog` | `200` | 무반주 가창 프리셋·가사·라이선스 |
 | `get_singing_source_audio` | `GET .../catalog/{source_id}/audio` | `200` | 변환 전 WAV 미리듣기 |
 | `create_singing_lullaby` | `POST .../conversions` | `202` | ready 프로필·설치된 Seed-VC 필요 |
 | `list_singing_lullabies` | `GET .../conversions` | `200` | 최근 변환 순 목록 |
@@ -271,11 +294,11 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 순차 변환한 뒤 20ms crossfade로 결합합니다. `GET /health/ready`의
 `seedvc_runtime_ready=false`이면 생성 버튼을 비활성화합니다.
 
-카탈로그는 상업 녹음을 복제하지 않고 전래 가사·선율을 프로젝트가 새로 렌더링한 가이드
-보컬입니다. 각 항목의 `composition_license`, `recording_license`, `attribution`을 UI 상세에
-표시할 수 있습니다.
+현재 카탈로그는 CC0 1.0으로 공개된 실제 여성 무반주 가창 `작은별_영문.wav`의 9초 구간을
+포함합니다. 프론트는 `composition_license`, `recording_license`, `attribution`을 원곡 상세에
+표시해야 합니다. 서버는 시작할 때 카탈로그 SHA-256과 경로 이탈을 검증합니다.
 
-## 10. 변경·검증 규칙
+## 11. 변경·검증 규칙
 
 - 백엔드는 스키마 변경 시 `scripts/export_openapi.py`를 실행해 `docs/openapi.json`을 함께 커밋합니다.
 - 계약 스냅샷이 코드와 다르면 테스트가 실패합니다.

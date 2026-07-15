@@ -5,6 +5,7 @@ from typing import Any
 from app.schemas import ErrorResponse
 
 TAG_HEALTH = "상태 확인"
+TAG_RECORDING = "브라우저 녹음"
 TAG_PROFILES = "목소리 프로필"
 TAG_BOOKS = "동화책"
 TAG_LULLABIES = "자장가"
@@ -16,6 +17,13 @@ OPENAPI_TAGS = [
     {
         "name": TAG_HEALTH,
         "description": "인증 없이 서버 생존 여부, 추론 backend와 대기 작업 수를 확인합니다.",
+    },
+    {
+        "name": TAG_RECORDING,
+        "description": (
+            "프론트엔드가 getUserMedia·MediaRecorder로 마이크를 녹음하고 multipart Blob을 "
+            "목소리 프로필 또는 동화 페이지 API에 업로드하기 위한 런타임 계약입니다."
+        ),
     },
     {
         "name": TAG_PROFILES,
@@ -41,7 +49,7 @@ OPENAPI_TAGS = [
     {
         "name": TAG_SINGING_LULLABIES,
         "description": (
-            "한국 전래 무반주 가이드 보컬을 선택하고 Seed-VC SVC 모델로 멜로디를 유지한 채 "
+            "무반주 가창 프리셋을 선택하고 Seed-VC SVC 모델로 멜로디를 유지한 채 "
             "등록된 부모 음색으로 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 분리됩니다."
         ),
     },
