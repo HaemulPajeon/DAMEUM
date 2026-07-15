@@ -1,41 +1,15 @@
 [
   {
-    "id": "jajang-jajang",
-    "title": "자장자장 우리 아가",
-    "description": "전래 자장가 가사를 담음 시연용 무반주 가이드 보컬로 재구성했습니다.",
-    "lyrics": "자장 자장 우리 아가, 꼬꼬 닭아 우지 마라. 우리 아가 잠을 깰라. 자장 자장 잘도 잔다.",
-    "region": "한국 전래",
-    "audio_file": "jajang-jajang.wav",
-    "duration_ms": 12920,
-    "sha256": "8356c8e616e7cac00f4b52265c89b2c7a4f6590af780a2aa14f7ac9ed714d767",
+    "id": "little-star-english",
+    "title": "작은별_영문",
+    "description": "여성 한 명이 영어 가사를 붙여 부른 실제 무반주 자장가의 첫 9초 구간입니다.",
+    "lyrics": "Twinkle, twinkle, little star, how I wonder what you are.",
+    "region": "영어권 전래",
+    "audio_file": "작은별_영문.wav",
+    "duration_ms": 9000,
+    "sha256": "963f95802e59bfa8940fb44835f408009984caa103ac280386a892593c066647",
     "composition_license": "Public Domain",
-    "recording_license": "DAMEUM_DEMO_ASSET",
-    "attribution": "전래 가사·선율 / 담음 프로젝트 생성 가이드 보컬"
-  },
-  {
-    "id": "dalgang-dalgang",
-    "title": "달강달강",
-    "description": "전래 아기 어르는 소리를 취침용 한국어 무반주 가이드 보컬로 각색했습니다.",
-    "lyrics": "달강 달강, 서울 길은 밤이 깊고 달빛은 밝다. 우리 아가 고운 꿈을 꾸며 새근새근 잠들자.",
-    "region": "한국 전래",
-    "audio_file": "dalgang-dalgang.wav",
-    "duration_ms": 13351,
-    "sha256": "76571d83fbd79ff2e1e1b668d10f14c1796fd77abe20f9e65f731819abfa0adb",
-    "composition_license": "Public Domain",
-    "recording_license": "DAMEUM_DEMO_ASSET",
-    "attribution": "전래 아기 어르는 소리 / 담음 프로젝트 취침용 각색·가이드 보컬"
-  },
-  {
-    "id": "saeya-saeya",
-    "title": "새야 새야 파랑새야",
-    "description": "자장가로도 불린 전래 민요를 한국어 무반주 가이드 보컬로 구성했습니다.",
-    "lyrics": "새야 새야 파랑새야, 녹두밭에 앉지 마라. 녹두꽃이 떨어지면 청포장수 울고 간다.",
-    "region": "한국 전래",
-    "audio_file": "saeya-saeya.wav",
-    "duration_ms": 13766,
-    "sha256": "1ece756eae58a708f5e0601ee46a0741c1edb3fc6743986ccd302c307cfd00ee",
-    "composition_license": "Public Domain",
-    "recording_license": "DAMEUM_DEMO_ASSET",
-    "attribution": "전래 가사·선율 / 담음 프로젝트 생성 가이드 보컬"
+    "recording_license": "CC0 1.0",
+    "attribution": "bectec, singing twinkle twinkle, Mr. moon.wav, Freesound sound 665123 (CC0 1.0)"
   }
 ]

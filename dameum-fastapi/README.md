@@ -34,6 +34,7 @@ macOS ARM64, CPU 4스레드 조건에서 실제 모델 전체 흐름을 검증�
 | VoxCPM2 CPU | 48kHz mono WAV 생성 성공, 최대 RSS 약 8.41GB |
 | Seed-VC CPU 4-step | 3초 무반주 가창 변환 약 278초, peak footprint 약 3.1GB |
 | HTTP 전체 페이지 작업 | STT → 발화 의도 교정 → 감정 → 합성, 교정문으로 TTS 생성 |
+| 17.26초 실제 M4A 전체 작업 | STT·교정·감정·VoxCPM2 완료 520초, 최종 48kHz WAV 생성 |
 
 Qwen은 활성 상태에서 약 4GB를 사용하지만 `--sleep-idle-seconds 2` 적용 후 메모리를 해제합니다. 전체 작업이 끝난 뒤 FastAPI worker는 약 892MB로 내려왔습니다. CPU 세대와 메모리 대역폭에 따라 시간은 달라집니다.
 
@@ -151,6 +152,74 @@ const api = async (path: string, init: RequestInit = {}) =>
 
 HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미디어는 `fetch`로 인증 헤더를 붙여 받은 뒤 `Blob` URL로 재생하고, 사용이 끝난 URL은 `URL.revokeObjectURL()`로 해제하세요.
 
+### 브라우저 마이크 녹음
+
+FastAPI 서버가 사용자 장치의 마이크를 직접 제어하지 않습니다. 프론트엔드가
+`navigator.mediaDevices.getUserMedia()`와 `MediaRecorder`로 녹음하고, 완성된 Blob을 기존
+프로필 샘플 또는 페이지 녹음 API의 `audio` 필드로 전송합니다. 서버는 WebM/Opus와 MP4/AAC를
+포함한 입력을 파일 시그니처로 검증한 뒤 16kHz mono PCM WAV로 정규화합니다.
+
+먼저 런타임 제한과 브라우저별 MIME 우선순위를 조회합니다.
+
+```ts
+const capabilities = await api("/v1/recording-capabilities").then(async (response) => {
+  if (!response.ok) throw await response.json();
+  return response.json();
+});
+
+const mimeType = capabilities.preferred_mime_types.find((candidate: string) =>
+  MediaRecorder.isTypeSupported(candidate),
+);
+if (!mimeType) throw new Error("지원 가능한 녹음 형식이 없습니다.");
+
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: capabilities.audio_constraints.echo_cancellation,
+    noiseSuppression: capabilities.audio_constraints.noise_suppression,
+    autoGainControl: capabilities.audio_constraints.auto_gain_control,
+    channelCount: { ideal: capabilities.audio_constraints.channel_count },
+  },
+});
+const chunks: BlobPart[] = [];
+const recorder = new MediaRecorder(stream, { mimeType });
+recorder.addEventListener("dataavailable", ({ data }) => {
+  if (data.size > 0) chunks.push(data);
+});
+recorder.start(capabilities.media_recorder_timeslice_ms);
+
+// 사용자가 정지 버튼을 누르면 실행
+const recording = await new Promise<Blob>((resolve) => {
+  recorder.addEventListener("stop", () => resolve(new Blob(chunks, { type: mimeType })), {
+    once: true,
+  });
+  recorder.stop();
+});
+stream.getTracks().forEach((track) => track.stop());
+if (recording.size > capabilities.max_file_bytes) throw new Error("녹음 용량이 너무 큽니다.");
+const extension = mimeType.startsWith("audio/mp4")
+  ? "m4a"
+  : mimeType.startsWith("audio/ogg")
+    ? "ogg"
+    : "webm";
+```
+
+목소리 샘플은 `prompt_text`와 함께 `POST /v1/voice-profiles/{profile_id}/samples`로 보내고,
+동화 녹음은 ready 프로필 ID와 함께
+`PUT /v1/books/{book_id}/pages/{page_number}/recording`으로 보냅니다. `Content-Type`은 직접
+설정하지 않아야 브라우저가 multipart boundary를 올바르게 만듭니다.
+
+```ts
+const body = new FormData();
+body.append("profile_id", profileId);
+body.append("audio", recording, `page-${pageNumber}.${extension}`);
+const response = await api(`/v1/books/${bookId}/pages/${pageNumber}/recording`, {
+  method: "PUT",
+  body,
+});
+if (!response.ok) throw await response.json();
+const { status_url } = await response.json();
+```
+
 ## 기능별 API 엔드포인트
 
 모든 `/v1` API는 `X-API-Key`가 필요합니다. `{profile_id}`, `{book_id}`, `{lullaby_id}`,
@@ -169,6 +238,12 @@ HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미�
 | `DELETE` | `/v1/voice-profiles/{profile_id}/samples/{sample_id}` | `delete_voice_sample` | 선택 샘플 삭제 |
 | `POST` | `/v1/voice-profiles/{profile_id}/preview` | `generate_profile_preview` | 5~20개 샘플 기반 미리듣기 생성·재생성 |
 | `GET` | `/v1/voice-profiles/{profile_id}/preview/audio` | `get_profile_preview_audio` | 미리듣기 WAV 재생 |
+
+### 브라우저 녹음 계약
+
+| Method | Endpoint | operationId | 기능 |
+|---|---|---|---|
+| `GET` | `/v1/recording-capabilities` | `get_recording_capabilities` | MediaRecorder MIME·제한·업로드 경로 조회 |
 
 ### 동화책과 페이지별 녹음
 
@@ -200,8 +275,8 @@ HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미�
 
 | Method | Endpoint | operationId | 기능 |
 |---|---|---|---|
-| `GET` | `/v1/singing-lullabies/catalog` | `list_singing_sources` | 한국어 무반주 원곡·가사·라이선스 목록 조회 |
-| `GET` | `/v1/singing-lullabies/catalog/{source_id}/audio` | `get_singing_source_audio` | 변환 전 가이드 보컬 미리듣기 |
+| `GET` | `/v1/singing-lullabies/catalog` | `list_singing_sources` | 무반주 가창 프리셋·가사·라이선스 조회 |
+| `GET` | `/v1/singing-lullabies/catalog/{source_id}/audio` | `get_singing_source_audio` | 변환 전 무반주 가창 미리듣기 |
 | `POST` | `/v1/singing-lullabies/conversions` | `create_singing_lullaby` | 선택 원곡을 부모 음색으로 비동기 변환 |
 | `GET` | `/v1/singing-lullabies/conversions` | `list_singing_lullabies` | 가창 자장가 변환 목록 조회 |
 | `GET` | `/v1/singing-lullabies/conversions/{conversion_id}` | `get_singing_lullaby` | 변환 상태·파라미터·결과 조회 |

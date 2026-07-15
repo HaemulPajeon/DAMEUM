@@ -8,6 +8,7 @@ import time
 import wave
 from pathlib import Path
 
+import av
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -27,6 +28,23 @@ def wav_bytes(duration: float = 0.7) -> bytes:
         output.setsampwidth(2)
         output.setframerate(16000)
         output.writeframes(b"\x00\x00" * int(16000 * duration))
+    return buffer.getvalue()
+
+
+def webm_opus_bytes(duration: float = 0.7) -> bytes:
+    buffer = io.BytesIO()
+    frame_count = round(duration / 0.02)
+    with av.open(buffer, mode="w", format="webm") as output:
+        stream = output.add_stream("libopus", rate=48000)
+        stream.layout = "mono"
+        for _ in range(frame_count):
+            frame = av.AudioFrame(format="s16", layout="mono", samples=960)
+            frame.sample_rate = 48000
+            frame.planes[0].update(b"\x00\x00" * 960)
+            for packet in stream.encode(frame):
+                output.mux(packet)
+        for packet in stream.encode(None):
+            output.mux(packet)
     return buffer.getvalue()
 
 
@@ -73,11 +91,19 @@ def create_ready_profile(client: TestClient) -> str:
     assert response.status_code == 201
     profile_id = response.json()["id"]
     for index in range(5):
+        if index == 0:
+            filename = "sample-0.webm"
+            content = webm_opus_bytes()
+            content_type = "audio/webm;codecs=opus"
+        else:
+            filename = f"sample-{index}.wav"
+            content = wav_bytes()
+            content_type = "audio/wav"
         response = client.post(
             f"/v1/voice-profiles/{profile_id}/samples",
             headers=HEADERS,
             data={"prompt_text": f"샘플 문장 {index + 1}입니다."},
-            files={"audio": (f"sample-{index}.wav", wav_bytes(), "audio/wav")},
+            files={"audio": (filename, content, content_type)},
         )
         assert response.status_code == 201, response.text
     response = client.post(
@@ -94,6 +120,16 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         assert client.get("/health/live").json() == {"status": "ok"}
         assert client.get("/v1/library").status_code == 401
+
+        capabilities = client.get("/v1/recording-capabilities", headers=HEADERS)
+        assert capabilities.status_code == 200
+        assert capabilities.json()["preferred_mime_types"][0] == "audio/webm;codecs=opus"
+        assert capabilities.json()["page_recording_upload"] == {
+            "method": "PUT",
+            "path_template": "/v1/books/{book_id}/pages/{page_number}/recording",
+            "audio_field": "audio",
+            "additional_fields": ["profile_id"],
+        }
 
         profile_id = create_ready_profile(client)
         profile = client.get(f"/v1/voice-profiles/{profile_id}", headers=HEADERS).json()
@@ -170,13 +206,14 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
 
         catalog = client.get("/v1/singing-lullabies/catalog", headers=HEADERS)
         assert catalog.status_code == 200
-        assert len(catalog.json()) == 3
+        assert len(catalog.json()) == 1
+        assert catalog.json()[0]["id"] == "little-star-english"
+        assert catalog.json()[0]["title"] == "작은별_영문"
         source = catalog.json()[0]
-        assert source["recording_license"] == "DAMEUM_DEMO_ASSET"
+        assert source["recording_license"] == "CC0 1.0"
         source_audio = client.get(source["audio_url"], headers=HEADERS)
         assert source_audio.status_code == 200
         assert source_audio.headers["content-type"].startswith("audio/wav")
-
         response = client.post(
             "/v1/singing-lullabies/conversions",
             headers=HEADERS,
@@ -246,6 +283,40 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
             ).status_code
             == 204
         )
+
+
+def test_media_recorder_webm_can_be_uploaded_to_page_pipeline(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        profile_id = create_ready_profile(client)
+        book = client.post(
+            "/v1/books",
+            headers=HEADERS,
+            json={
+                "title": "브라우저 녹음 동화",
+                "pages": [{"page_number": 1, "text": "아기 돼지 삼 형제 이야기예요."}],
+            },
+        )
+        assert book.status_code == 201
+
+        recording = client.put(
+            f"/v1/books/{book.json()['id']}/pages/1/recording",
+            headers=HEADERS,
+            data={"profile_id": profile_id},
+            files={
+                "audio": (
+                    "page-1.webm",
+                    webm_opus_bytes(),
+                    "audio/webm;codecs=opus",
+                )
+            },
+        )
+        assert recording.status_code == 202, recording.text
+        assert wait_job(client, recording.json()["job_id"])["status"] == "succeeded"
+
+        detail = client.get(f"/v1/books/{book.json()['id']}", headers=HEADERS).json()
+        assert detail["pages"][0]["recording"]["status"] == "succeeded"
+        original_url = detail["pages"][0]["recording"]["original_url"]
+        assert client.get(original_url, headers=HEADERS).status_code == 200
 
 
 def test_recording_synthesizes_corrected_spoken_intent(monkeypatch, tmp_path: Path) -> None:
@@ -438,7 +509,9 @@ def test_seedvc_runner_forces_cpu_and_sanitizes_secrets(monkeypatch, tmp_path: P
     (runtime / "inference.py").write_text("# pinned Seed-VC", encoding="utf-8")
     python = runtime / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
-    python.write_text("", encoding="utf-8")
+    base_python = tmp_path / "base-python"
+    base_python.write_text("", encoding="utf-8")
+    python.symlink_to(base_python)
     source = tmp_path / "source.wav"
     reference = tmp_path / "data" / "audio" / "profiles" / "reference.wav"
     reference.parent.mkdir(parents=True)
@@ -468,6 +541,7 @@ def test_seedvc_runner_forces_cpu_and_sanitizes_secrets(monkeypatch, tmp_path: P
 
     command = captured["command"]
     environment = captured["environment"]
+    assert command[0] == str(python)
     assert "--f0-condition" in command and command[command.index("--f0-condition") + 1] == "True"
     assert "--fp16" in command and command[command.index("--fp16") + 1] == "False"
     assert environment["CUDA_VISIBLE_DEVICES"] == "-1"

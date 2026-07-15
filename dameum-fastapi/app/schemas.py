@@ -66,6 +66,48 @@ class HealthReady(ApiModel):
     seedvc_runtime_ready: bool = Field(description="별도 Seed-VC CPU 런타임 설치 완료 여부")
 
 
+class BrowserAudioConstraints(ApiModel):
+    echo_cancellation: bool = Field(description="브라우저 하울링·반향 제거 요청 여부")
+    noise_suppression: bool = Field(description="브라우저 배경 소음 억제 요청 여부")
+    auto_gain_control: bool = Field(description="브라우저 자동 입력 음량 보정 요청 여부")
+    channel_count: Literal[1] = Field(description="모노 녹음 요청값")
+
+
+class RecordingUploadTarget(ApiModel):
+    method: Literal["POST", "PUT"] = Field(description="녹음 Blob 업로드 HTTP method")
+    path_template: str = Field(description="프론트에서 식별자를 치환할 API 경로 템플릿")
+    audio_field: Literal["audio"] = Field(description="multipart 오디오 필드명")
+    additional_fields: list[str] = Field(description="같이 전송할 multipart 필드명")
+
+
+class RecordingCapabilities(ApiModel):
+    secure_context_required: Literal[True] = Field(
+        description="브라우저 마이크 사용에 secure context가 필요한지 여부"
+    )
+    localhost_http_allowed: Literal[True] = Field(
+        description="localhost·127.0.0.1 HTTP가 브라우저 secure context로 허용되는지 여부"
+    )
+    min_duration_ms: int = Field(description="서버가 허용하는 최소 녹음 길이(ms)", ge=500)
+    max_duration_ms: int = Field(description="서버가 허용하는 최대 녹음 길이(ms)", ge=500)
+    max_file_bytes: int = Field(description="녹음 한 건의 최대 업로드 크기(byte)", ge=1)
+    preferred_mime_types: list[str] = Field(
+        description="MediaRecorder.isTypeSupported 순서대로 확인할 권장 MIME 목록"
+    )
+    accepted_containers: list[str] = Field(description="서버가 시그니처로 검증하는 오디오 컨테이너")
+    media_recorder_timeslice_ms: int = Field(
+        description="브라우저 메모리 사용량 제한을 위한 권장 dataavailable 주기(ms)", ge=250
+    )
+    audio_constraints: BrowserAudioConstraints = Field(
+        description="getUserMedia에 전달할 권장 audio constraints"
+    )
+    profile_sample_upload: RecordingUploadTarget = Field(
+        description="목소리 프로필 녹음 업로드 계약"
+    )
+    page_recording_upload: RecordingUploadTarget = Field(
+        description="동화 페이지 녹음·재녹음 업로드 계약"
+    )
+
+
 class VoiceProfileCreate(ApiModel):
     model_config = ConfigDict(
         from_attributes=True,
@@ -296,13 +338,13 @@ class LullabyPlaybackPlan(ApiModel):
 
 
 class SingingSourceRead(ApiModel):
-    id: str = Field(description="한국어 무반주 자장가 소스 ID")
+    id: str = Field(description="무반주 자장가 프리셋 ID")
     title: str = Field(description="소스 제목")
     description: str = Field(description="수집·생성 배경")
-    lyrics: str = Field(description="한국어 가사")
+    lyrics: str = Field(description="가창에 포함된 가사")
     region: str = Field(description="전승 지역 또는 범위")
-    duration_ms: int = Field(description="가이드 보컬 길이(ms)", ge=1)
-    audio_url: str = Field(description="무반주 원본 가이드 보컬 WAV 상대 URL")
+    duration_ms: int = Field(description="무반주 가창 길이(ms)", ge=1)
+    audio_url: str = Field(description="무반주 가창 WAV 상대 URL")
     composition_license: str = Field(description="가사·선율 이용 조건")
     recording_license: str = Field(description="가이드 녹음 이용 조건")
     attribution: str = Field(description="출처 표시 문구")
@@ -314,7 +356,7 @@ class SingingLullabyCreate(ApiModel):
         json_schema_extra={
             "examples": [
                 {
-                    "source_id": "jajang-jajang",
+                    "source_id": "little-star-english",
                     "profile_id": "9f93bd9e-71d4-497d-9512-29c6975263f3",
                     "repeat_count": 3,
                     "timer_minutes": 20,
@@ -358,7 +400,7 @@ class SingingLullabyRead(ApiModel):
     source_id: str = Field(description="선택한 카탈로그 소스 ID")
     profile_id: str = Field(description="사용한 목소리 프로필 UUID")
     title: str = Field(description="선택한 자장가 제목")
-    lyrics: str = Field(description="선택한 자장가 한국어 가사")
+    lyrics: str = Field(description="선택한 자장가 가사")
     status: JobStatusValue = Field(description="Seed-VC 변환 상태")
     repeat_count: int = Field(description="반복 횟수", ge=1, le=100)
     timer_minutes: int | None = Field(default=None, description="재생 타이머(분)")

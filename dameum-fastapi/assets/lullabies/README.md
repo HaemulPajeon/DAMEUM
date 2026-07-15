@@ -1,12 +1,10 @@
-# 한국어 무반주 자장가 가이드 음원
+# 무반주 자장가 프리셋
 
-상업 음원이나 MBC 한국민요대전 녹음을 복제하지 않고, 전래 가사·선율을 바탕으로 담음 프로젝트가
-로컬 시연용 가이드 보컬을 새로 렌더링했습니다. WAV에는 반주가 없으며 Seed-VC가 음높이와 리듬을
-유지하면서 등록된 부모 음색으로 변환할 때만 사용합니다.
+Seed-VC 가창 변환에는 다음 단일 프리셋만 사용합니다.
 
-- `jajang-jajang.wav`: 전래 자장가 「자장자장 우리 아가」 기반
-- `dalgang-dalgang.wav`: 전래 아기 어르는 소리 「달강달강」 기반의 취침용 각색
-- `saeya-saeya.wav`: 전래 민요 「새야 새야 파랑새야」 기반
+- `작은별_영문.wav`: 가사 있는 실제 여성 무반주 가창의 첫 9초 구간
+- 가사: `Twinkle, twinkle, little star, how I wonder what you are.`
+- 작곡: Public Domain
+- 녹음: bectec, Freesound sound 665123, CC0 1.0
 
-`scripts/build_lullaby_assets.py`는 macOS 한국어 시스템 음성으로 동일한 처리 과정을 재현하는
-빌드 도구입니다. 음원 메타데이터와 SHA-256은 `catalog.json`에서 확인합니다.
+카탈로그는 WAV의 SHA-256을 검증하며 파일이 바뀌면 서버가 시작되지 않습니다.
