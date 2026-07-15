@@ -39,3 +39,18 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+data/
+models/
+*.sqlite3
+
+# 사용자별 IDE 설정
+.idea/
+.vscode/
