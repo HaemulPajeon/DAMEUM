@@ -22,11 +22,12 @@ dependencies = [
 
 [project.optional-dependencies]
 ml = [
-  "faster-whisper>=1.2,<2",
+  "accelerate>=1.10,<2",
   # VoxCPM의 간접 의존성이 Python 3.11 미지원 버전으로 역행하지 않도록 제한한다.
   "llvmlite>=0.44,<1",
   "numba>=0.61,<1",
   "numpy>=1.26,<2.4",
+  "peft>=0.19.1,<1",
   "soundfile>=0.13,<1",
   "transformers>=4.53,<6",
   "voxcpm>=2.0.3,<3",

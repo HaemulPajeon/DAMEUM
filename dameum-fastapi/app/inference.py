@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import hashlib
 import math
 import os
 import re
@@ -27,6 +28,7 @@ class InferencePipeline:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._stt: Any = None
+        self._stt_processor: Any = None
         self._emotion_tokenizer: Any = None
         self._emotion_model: Any = None
         self._tts: Any = None
@@ -35,26 +37,75 @@ class InferencePipeline:
         if self.settings.inference_backend == "mock":
             return expected_text or "사랑하는 우리 아이야, 오늘도 행복한 하루 보내자."
         if self._stt is None:
-            from faster_whisper import WhisperModel
+            self._load_stt()
+        import numpy as np
+        import torch
 
-            self._stt = WhisperModel(
-                self.settings.stt_model,
-                device="cpu",
-                compute_type="int8",
-                cpu_threads=self.settings.cpu_threads,
-                num_workers=1,
+        with wave.open(str(audio_path), "rb") as source:
+            if (
+                source.getnchannels() != 1
+                or source.getsampwidth() != 2
+                or source.getframerate() != 16000
+            ):
+                raise RuntimeError("STT 입력은 16kHz mono PCM WAV여야 합니다")
+            audio = np.frombuffer(source.readframes(source.getnframes()), dtype="<i2").astype(
+                np.float32
             )
-        segments, _ = self._stt.transcribe(
-            str(audio_path),
-            language="ko",
-            beam_size=5,
-            vad_filter=True,
-            condition_on_previous_text=False,
+        audio /= 32768.0
+        features = self._stt_processor.feature_extractor(
+            audio,
+            sampling_rate=16000,
+            return_tensors="pt",
         )
-        transcript = " ".join(segment.text.strip() for segment in segments).strip()
+        with torch.inference_mode():
+            generated_ids = self._stt.generate(
+                features.input_features,
+                language="korean",
+                task="transcribe",
+                num_beams=5,
+                max_length=225,
+            )
+        transcript = self._stt_processor.tokenizer.batch_decode(
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0].strip()
         if not transcript:
             raise RuntimeError("음성에서 발화를 인식하지 못했습니다")
         return transcript
+
+    def _load_stt(self) -> None:
+        adapter_dir = self.settings.resolved_stt_adapter_dir
+        adapter_model = adapter_dir / "adapter_model.safetensors"
+        adapter_config = adapter_dir / "adapter_config.json"
+        if not adapter_model.is_file() or not adapter_config.is_file():
+            raise RuntimeError(f"STT LoRA 어댑터를 찾을 수 없습니다: {adapter_dir}")
+        digest = hashlib.sha256()
+        with adapter_model.open("rb") as source:
+            while chunk := source.read(1024 * 1024):
+                digest.update(chunk)
+        if digest.hexdigest() != self.settings.stt_adapter_sha256:
+            raise RuntimeError("STT LoRA 어댑터 무결성 검증에 실패했습니다")
+
+        import torch
+        from peft import PeftModel
+        from transformers import WhisperForConditionalGeneration, WhisperProcessor
+
+        self._stt_processor = WhisperProcessor.from_pretrained(
+            str(adapter_dir),
+            local_files_only=True,
+        )
+        base_model = WhisperForConditionalGeneration.from_pretrained(
+            self.settings.stt_model,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
+        self._stt = PeftModel.from_pretrained(
+            base_model,
+            str(adapter_dir),
+            is_trainable=False,
+        ).to("cpu")
+        self._stt.eval()
 
     def correct_sentence(self, transcript: str, expected_text: str | None = None) -> str:
         if self.settings.inference_backend == "mock":
@@ -167,6 +218,7 @@ class InferencePipeline:
         if not self.settings.unload_models_after_job:
             return
         self._stt = None
+        self._stt_processor = None
         self._emotion_tokenizer = None
         self._emotion_model = None
         self._tts = None
