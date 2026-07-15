@@ -33,7 +33,7 @@ macOS ARM64, CPU 4스레드 조건에서 실제 모델 전체 흐름을 검증�
 | KoELECTRA 감정 분류 | 이후 추론 약 0.02초, 최대 RSS 약 1.26GB |
 | VoxCPM2 CPU | 48kHz mono WAV 생성 성공, 최대 RSS 약 8.41GB |
 | Seed-VC CPU 4-step | 3초 무반주 가창 변환 약 278초, peak footprint 약 3.1GB |
-| HTTP 전체 페이지 작업 | STT → 교정 → 감정 → 합성 70.2초, 원문 완전 일치 |
+| HTTP 전체 페이지 작업 | STT → 발화 의도 교정 → 감정 → 합성, 교정문으로 TTS 생성 |
 
 Qwen은 활성 상태에서 약 4GB를 사용하지만 `--sleep-idle-seconds 2` 적용 후 메모리를 해제합니다. 전체 작업이 끝난 뒤 FastAPI worker는 약 892MB로 내려왔습니다. CPU 세대와 메모리 대역폭에 따라 시간은 달라집니다.
 

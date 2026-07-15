@@ -160,9 +160,8 @@ class JobQueue:
             self.pipeline.transcribe, normalized_path, expected_text
         )
         await self._progress(job_id, 30)
-        await asyncio.to_thread(self.pipeline.correct_sentence, transcript, expected_text)
-        # 동화책은 합성 문장이 페이지 원문과 반드시 일치해야 한다.
-        corrected = expected_text.strip()
+        # 페이지 원문이 아니라 실제 발화의 의도를 복원한 문장을 합성 입력으로 사용한다.
+        corrected = await asyncio.to_thread(self.pipeline.correct_sentence, transcript)
         await self._progress(job_id, 55)
         emotion, score = await asyncio.to_thread(self.pipeline.classify_emotion, corrected)
         await self._progress(job_id, 70)

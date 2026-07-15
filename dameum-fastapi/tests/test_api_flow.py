@@ -248,6 +248,70 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         )
 
 
+def test_recording_synthesizes_corrected_spoken_intent(monkeypatch, tmp_path: Path) -> None:
+    spoken_transcript = "아빠가 오느른 조금 느저써"
+    corrected_intent = "아빠가 오늘은 조금 늦었어."
+    synthesized_texts: list[str] = []
+
+    def transcribe(
+        _pipeline: InferencePipeline,
+        _audio_path: Path,
+        _expected_text: str | None = None,
+    ) -> str:
+        return spoken_transcript
+
+    def correct_sentence(
+        _pipeline: InferencePipeline,
+        transcript: str,
+        expected_text: str | None = None,
+    ) -> str:
+        assert transcript == spoken_transcript
+        assert expected_text is None
+        return corrected_intent
+
+    def synthesize(
+        pipeline: InferencePipeline,
+        text: str,
+        _reference_path: Path,
+        output_path: Path,
+        _emotion: str = "중립",
+    ) -> None:
+        synthesized_texts.append(text)
+        pipeline._write_mock_wav(output_path, 0.7)
+
+    monkeypatch.setattr(InferencePipeline, "transcribe", transcribe)
+    monkeypatch.setattr(InferencePipeline, "correct_sentence", correct_sentence)
+    monkeypatch.setattr(InferencePipeline, "synthesize", synthesize)
+
+    with make_client(tmp_path) as client:
+        profile_id = create_ready_profile(client)
+        response = client.post(
+            "/v1/books",
+            headers=HEADERS,
+            json={
+                "title": "발화 의도 테스트",
+                "author": "담음",
+                "pages": [{"page_number": 1, "text": "달님이 환하게 웃었어요."}],
+            },
+        )
+        book_id = response.json()["id"]
+        response = client.put(
+            f"/v1/books/{book_id}/pages/1/recording",
+            headers=HEADERS,
+            data={"profile_id": profile_id},
+            files={"audio": ("page.wav", wav_bytes(), "audio/wav")},
+        )
+        assert response.status_code == 202
+        assert wait_job(client, response.json()["job_id"])["status"] == "succeeded"
+
+        book = client.get(f"/v1/books/{book_id}", headers=HEADERS).json()
+        recording = book["pages"][0]["recording"]
+        assert recording["transcript"] == spoken_transcript
+        assert recording["corrected_text"] == corrected_intent
+        assert recording["corrected_text"] != book["pages"][0]["text"]
+        assert synthesized_texts[-1] == corrected_intent
+
+
 def test_upload_and_consent_validation(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         response = client.post(
