@@ -132,6 +132,20 @@ class Lullaby(TimestampMixin, Base):
     timer_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class SingingLullaby(TimestampMixin, Base):
+    __tablename__ = "singing_lullabies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    source_id: Mapped[str] = mapped_column(String(80), index=True)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("voice_profiles.id", ondelete="RESTRICT"))
+    audio_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default=JobStatus.QUEUED.value)
+    repeat_count: Mapped[int] = mapped_column(Integer, default=1)
+    timer_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    diffusion_steps: Mapped[int] = mapped_column(Integer, default=10)
+    semitone_shift: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Job(TimestampMixin, Base):
     __tablename__ = "jobs"
 
