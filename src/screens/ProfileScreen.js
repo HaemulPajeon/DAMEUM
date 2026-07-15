@@ -2,8 +2,10 @@ import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
+import { useVoiceProfile } from '../store/VoiceProfileContext';
 
 export default function ProfileScreen({ navigation }) {
+  const { profile } = useVoiceProfile();
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -25,8 +27,8 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="mic" size={22} color="#6071e7" />
               </View>
               <View>
-                <Text style={styles.profileName}>00님의 목소리</Text>
-                <Text style={styles.profileDate}>2026.07.15 생성</Text>
+                <Text style={styles.profileName}>{profile.name}</Text>
+                <Text style={styles.profileDate}>{profile.date} 생성</Text>
               </View>
             </View>
 
@@ -40,7 +42,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.progressTrack}>
                 <View style={styles.progressFill} />
               </View>
-              <Text style={styles.duration}>3:30</Text>
+              <Text style={styles.duration}>{profile.duration}</Text>
             </View>
           </View>
 

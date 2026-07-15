@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useVoiceProfile } from '../store/VoiceProfileContext';
 
 function formatElapsed(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -11,6 +12,7 @@ function formatElapsed(seconds) {
 
 export default function VoiceRegisterRecordingScreen({ navigation }) {
   const [elapsed, setElapsed] = useState(0);
+  const { setProfile } = useVoiceProfile();
 
   useEffect(() => {
     const id = setInterval(() => setElapsed((prev) => prev + 1), 1000);
@@ -37,8 +39,11 @@ export default function VoiceRegisterRecordingScreen({ navigation }) {
           </View>
 
           <TouchableOpacity
-            style={styles.doneBtn}
-            onPress={() => navigation.navigate('Profile')}
+              style={styles.doneBtn}
+              onPress={() => {
+                setProfile({ name: '00님의 목소리', duration: formatElapsed(elapsed) });
+                navigation.navigate('Profile');
+              }}
           >
             <Text style={styles.doneText}>다 읽었어요</Text>
           </TouchableOpacity>

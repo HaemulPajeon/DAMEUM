@@ -51,7 +51,7 @@ export default function LibraryScreen({ navigation }) {
     }, [])
   );
 
-  const sourceItems = libraryItems ?? localItems;
+  const sourceItems = [...(libraryItems ?? []), ...localItems];
 
   const searchedItems = sourceItems.filter((item) =>
     item.title.toLowerCase().includes(query.trim().toLowerCase())
