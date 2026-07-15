@@ -52,6 +52,10 @@ class ModelConfiguration(ApiModel):
         examples=["jeongyoonhuh/koelectra-emotion-6class"],
     )
     tts: str = Field(description="음성 합성 모델 식별자", examples=["openbmb/VoxCPM2"])
+    singing_voice: str = Field(
+        description="멜로디 보존 가창 음색 변환 모델",
+        examples=["Plachtaa/Seed-VC@51383efd"],
+    )
 
 
 class HealthReady(ApiModel):
@@ -59,6 +63,7 @@ class HealthReady(ApiModel):
     inference_backend: Literal["real", "mock"] = Field(description="현재 추론 backend")
     queued_jobs: int = Field(description="대기 중인 추론 작업 수", ge=0)
     models: ModelConfiguration = Field(description="현재 모델 구성")
+    seedvc_runtime_ready: bool = Field(description="별도 Seed-VC CPU 런타임 설치 완료 여부")
 
 
 class VoiceProfileCreate(ApiModel):
@@ -290,11 +295,98 @@ class LullabyPlaybackPlan(ApiModel):
     stop_on_timer: bool = Field(description="타이머 만료 시 즉시 재생을 중단해야 하는지 여부")
 
 
+class SingingSourceRead(ApiModel):
+    id: str = Field(description="한국어 무반주 자장가 소스 ID")
+    title: str = Field(description="소스 제목")
+    description: str = Field(description="수집·생성 배경")
+    lyrics: str = Field(description="한국어 가사")
+    region: str = Field(description="전승 지역 또는 범위")
+    duration_ms: int = Field(description="가이드 보컬 길이(ms)", ge=1)
+    audio_url: str = Field(description="무반주 원본 가이드 보컬 WAV 상대 URL")
+    composition_license: str = Field(description="가사·선율 이용 조건")
+    recording_license: str = Field(description="가이드 녹음 이용 조건")
+    attribution: str = Field(description="출처 표시 문구")
+
+
+class SingingLullabyCreate(ApiModel):
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "source_id": "jajang-jajang",
+                    "profile_id": "9f93bd9e-71d4-497d-9512-29c6975263f3",
+                    "repeat_count": 3,
+                    "timer_minutes": 20,
+                    "diffusion_steps": 10,
+                    "semitone_shift": 0,
+                }
+            ]
+        },
+    )
+
+    source_id: str = Field(
+        description="카탈로그에서 선택한 무반주 자장가 ID",
+        min_length=1,
+        max_length=80,
+        pattern=r"^[a-z0-9-]+$",
+    )
+    profile_id: str = Field(description="ready 상태인 목소리 프로필 UUID")
+    repeat_count: int = Field(default=1, description="프론트 재생 반복 횟수", ge=1, le=100)
+    timer_minutes: int | None = Field(
+        default=None,
+        description="프론트 재생 중단 타이머(분)",
+        ge=1,
+        le=480,
+    )
+    diffusion_steps: int | None = Field(
+        default=None,
+        description="Seed-VC diffusion step. 생략 시 서버 기본값, 품질 우선은 30~50",
+        ge=4,
+        le=50,
+    )
+    semitone_shift: int = Field(
+        default=0,
+        description="원곡 음높이 이동(반음 단위)",
+        ge=-12,
+        le=12,
+    )
+
+
+class SingingLullabyRead(ApiModel):
+    id: str = Field(description="가창 자장가 변환 UUID")
+    source_id: str = Field(description="선택한 카탈로그 소스 ID")
+    profile_id: str = Field(description="사용한 목소리 프로필 UUID")
+    title: str = Field(description="선택한 자장가 제목")
+    lyrics: str = Field(description="선택한 자장가 한국어 가사")
+    status: JobStatusValue = Field(description="Seed-VC 변환 상태")
+    repeat_count: int = Field(description="반복 횟수", ge=1, le=100)
+    timer_minutes: int | None = Field(default=None, description="재생 타이머(분)")
+    diffusion_steps: int = Field(description="적용한 diffusion step", ge=4, le=50)
+    semitone_shift: int = Field(description="적용한 반음 이동", ge=-12, le=12)
+    audio_url: str | None = Field(default=None, description="변환 완료 WAV 상대 URL")
+    created_at: datetime = Field(description="생성 시각(UTC, ISO 8601)")
+    updated_at: datetime = Field(description="최종 변경 시각(UTC, ISO 8601)")
+
+
+class SingingLullabyPlaybackPlan(ApiModel):
+    conversion_id: str = Field(description="가창 자장가 변환 UUID")
+    mode: Literal["automatic"] = Field(default="automatic", description="자동 재생 모드")
+    audio_url: str = Field(description="반복 재생할 변환 WAV 상대 URL")
+    repeat_count: int = Field(description="재생 반복 횟수", ge=1, le=100)
+    loop: bool = Field(description="두 번 이상 반복하는지 여부")
+    timer_seconds: int | None = Field(default=None, description="재생 중단 타이머(초)")
+    stop_on_timer: bool = Field(description="타이머 만료 시 즉시 중단 여부")
+
+
 class JobRead(ApiModel):
     id: str = Field(description="비동기 작업 UUID")
-    kind: Literal["recording_pipeline", "profile_preview", "lullaby_generation"] = Field(
-        description="작업 종류"
-    )
+    kind: Literal[
+        "recording_pipeline",
+        "profile_preview",
+        "lullaby_generation",
+        "seedvc_lullaby_conversion",
+    ] = Field(description="작업 종류")
     target_id: str = Field(description="작업 대상 리소스 UUID")
     status: JobStatusValue = Field(description="queued → running → succeeded 또는 failed")
     progress: int = Field(description="작업 진행률", ge=0, le=100)

@@ -18,6 +18,7 @@ from app.jobs import JobQueue
 from app.openapi import OPENAPI_TAGS, TAG_HEALTH
 from app.schemas import HealthLive, HealthReady
 from app.security import add_security_headers
+from app.singing import SeedVCRunner, SingingCatalog
 from app.storage import MediaStore
 
 logger = logging.getLogger(__name__)
@@ -46,10 +47,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.max_audio_seconds,
         )
         pipeline = InferencePipeline(settings)
-        job_queue = JobQueue(settings, session_factory, pipeline, media_store)
+        singing_catalog = SingingCatalog(settings.resolved_lullaby_catalog_dir)
+        seedvc_runner = SeedVCRunner(settings)
+        job_queue = JobQueue(
+            settings,
+            session_factory,
+            pipeline,
+            media_store,
+            singing_catalog,
+            seedvc_runner,
+        )
         app.state.engine = engine
         app.state.session_factory = session_factory
         app.state.media_store = media_store
+        app.state.singing_catalog = singing_catalog
         app.state.job_queue = job_queue
         await job_queue.start()
         try:
@@ -63,7 +74,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="0.1.0",
         description=(
             "구음장애 부모의 발화를 **STT → LLM 문장 복원 → 감정 분류 → VoxCPM2**로 "
-            "처리해 부모 고유 음색으로 전달하는 로컬 REST API입니다.\n\n"
+            "처리하고, Seed-VC로 무반주 자장가의 멜로디를 유지해 부모 음색으로 변환하는 "
+            "로컬 REST API입니다.\n\n"
             "모든 `/v1` 요청은 `X-API-Key`가 필요합니다. 생성 요청은 `202 Accepted`와 "
             "`status_url`을 반환하며, 프론트엔드는 1~2초 간격으로 작업을 조회해야 합니다."
         ),
@@ -135,7 +147,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "correction": settings.llm_model,
                 "emotion": settings.emotion_model,
                 "tts": settings.voxcpm_model,
+                "singing_voice": f"Plachtaa/Seed-VC@{settings.seedvc_commit[:8]}",
             },
+            "seedvc_runtime_ready": settings.seedvc_runtime_ready,
         }
 
     @app.exception_handler(RequestValidationError)

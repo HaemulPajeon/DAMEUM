@@ -35,7 +35,7 @@ def test_openapi_is_frontend_ready(tmp_path: Path) -> None:
     operation_ids = [operation["operationId"] for _, _, operation in api_operations]
 
     assert document["openapi"].startswith("3.1.")
-    assert len(api_operations) == 28
+    assert len(api_operations) == 36
     assert len(operation_ids) == len(set(operation_ids))
     assert document["components"]["securitySchemes"]["APIKeyHeader"] == {
         "type": "apiKey",
@@ -62,6 +62,8 @@ def test_binary_media_contract(tmp_path: Path) -> None:
         "/v1/voice-profiles/{profile_id}/preview/audio",
         "/v1/books/{book_id}/pages/{page_number}/audio",
         "/v1/lullabies/{lullaby_id}/audio",
+        "/v1/singing-lullabies/catalog/{source_id}/audio",
+        "/v1/singing-lullabies/conversions/{conversion_id}/audio",
     ]
     for path in audio_paths:
         responses = document["paths"][path]["get"]["responses"]

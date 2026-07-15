@@ -122,6 +122,7 @@ JSON 오류는 같은 envelope을 사용합니다. 단, 잘못된 오디오 `Ran
 | `422` | `validation_error`, `invalid_audio`, `invalid_audio_duration`, `invalid_image` | 필드 또는 파일 오류 표시 |
 | `500` | `internal_error` | 일반 오류 표시 후 사용자가 재시도하도록 안내 |
 | `503` | `queue_full` | `Retry-After` 초 뒤 제한적으로 재시도 |
+| `503` | `seedvc_runtime_unavailable` | `scripts.setup_seedvc` 실행 후 상태 API 재확인 |
 
 ## 4. 비동기 작업 계약
 
@@ -130,6 +131,7 @@ JSON 오류는 같은 envelope을 사용합니다. 단, 잘못된 오디오 `Ran
 - `generate_profile_preview`: 목소리 프로필 미리듣기 생성·재생성
 - `put_page_recording`: STT → LLM 문장 복원 → 감정 분류 → VoxCPM2 재합성
 - `create_lullaby`: 부모 음색 자장가 낭독 생성
+- `create_singing_lullaby`: 원곡 멜로디를 유지한 Seed-VC 부모 음색 변환
 
 ```json
 {
@@ -248,7 +250,32 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 아니라 부모 음색의 부드러운 낭독입니다. `playable_url=null`이면 아직 재생 버튼을 활성화하지
 않고, 라이브러리 삭제는 각 항목의 `delete_url`에 `DELETE`를 요청합니다.
 
-## 9. 변경·검증 규칙
+## 9. Seed-VC 무반주 가창 자장가
+
+기존 `/v1/lullabies`는 VoxCPM2 낭독이며 아래 API와 데이터 모델을 공유하지 않습니다. 프론트는
+먼저 카탈로그에서 원곡을 재생하고 `source_id`와 ready 프로필을 선택해 변환을 요청합니다.
+
+| operationId | Method / Path | 성공 | 업무 규칙 |
+|---|---|---|---|
+| `list_singing_sources` | `GET /v1/singing-lullabies/catalog` | `200` | 전래 무반주 원곡·가사·라이선스 |
+| `get_singing_source_audio` | `GET .../catalog/{source_id}/audio` | `200` | 변환 전 WAV 미리듣기 |
+| `create_singing_lullaby` | `POST .../conversions` | `202` | ready 프로필·설치된 Seed-VC 필요 |
+| `list_singing_lullabies` | `GET .../conversions` | `200` | 최근 변환 순 목록 |
+| `get_singing_lullaby` | `GET .../conversions/{conversion_id}` | `200` | 상태·파라미터·결과 URL |
+| `get_singing_lullaby_audio` | `GET .../conversions/{conversion_id}/audio` | `200` | 44.1kHz 변환 WAV |
+| `create_singing_lullaby_playback_plan` | `POST .../{conversion_id}/playback-plan` | `200` | 반복·타이머 실행 계획 |
+| `delete_singing_lullaby` | `DELETE .../conversions/{conversion_id}` | `204` | 결과 WAV와 메타데이터 삭제 |
+
+생성 본문의 `diffusion_steps`는 생략 시 서버 기본값 10입니다. 4~10은 CPU 시연 속도, 30~50은
+품질 우선 설정입니다. `semitone_shift`는 -12~12 범위입니다. 서버는 최대 3초 구간으로 나눠
+순차 변환한 뒤 20ms crossfade로 결합합니다. `GET /health/ready`의
+`seedvc_runtime_ready=false`이면 생성 버튼을 비활성화합니다.
+
+카탈로그는 상업 녹음을 복제하지 않고 전래 가사·선율을 프로젝트가 새로 렌더링한 가이드
+보컬입니다. 각 항목의 `composition_license`, `recording_license`, `attribution`을 UI 상세에
+표시할 수 있습니다.
+
+## 10. 변경·검증 규칙
 
 - 백엔드는 스키마 변경 시 `scripts/export_openapi.py`를 실행해 `docs/openapi.json`을 함께 커밋합니다.
 - 계약 스냅샷이 코드와 다르면 테스트가 실패합니다.
