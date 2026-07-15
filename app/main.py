@@ -8,16 +8,24 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 
 from app.api import router
 from app.config import Settings, get_settings
 from app.db import create_engine, create_schema, create_session_factory
 from app.inference import InferencePipeline, configure_cpu_threads
 from app.jobs import JobQueue
+from app.openapi import OPENAPI_TAGS, TAG_HEALTH
+from app.schemas import HealthLive, HealthReady
 from app.security import add_security_headers
 from app.storage import MediaStore
 
 logger = logging.getLogger(__name__)
+
+
+def stable_operation_id(route: APIRoute) -> str:
+    # 함수명을 고정 operationId로 사용해 프론트 API 클라이언트의 불필요한 변경을 막는다.
+    return route.name
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -53,10 +61,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
-        description="구음장애 부모의 발화를 고유 음색으로 명료하게 전달하는 로컬 REST API",
+        description=(
+            "구음장애 부모의 발화를 **STT → LLM 문장 복원 → 감정 분류 → VoxCPM2**로 "
+            "처리해 부모 고유 음색으로 전달하는 로컬 REST API입니다.\n\n"
+            "모든 `/v1` 요청은 `X-API-Key`가 필요합니다. 생성 요청은 `202 Accepted`와 "
+            "`status_url`을 반환하며, 프론트엔드는 1~2초 간격으로 작업을 조회해야 합니다."
+        ),
         lifespan=lifespan,
         docs_url="/docs" if settings.environment == "local" else None,
         redoc_url=None,
+        swagger_ui_parameters={
+            "deepLinking": True,
+            "displayRequestDuration": True,
+            "filter": True,
+            "showExtensions": True,
+            "defaultModelsExpandDepth": 2,
+        },
+        openapi_tags=OPENAPI_TAGS,
+        servers=[
+            {
+                "url": "http://127.0.0.1:8000",
+                "description": "로컬 FastAPI 서버",
+            }
+        ],
+        generate_unique_id_function=stable_operation_id,
     )
     app.state.settings = settings
     app.add_middleware(
@@ -75,12 +103,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.middleware("http")(add_security_headers)
     app.include_router(router)
 
-    @app.get("/health/live", tags=["health"])
-    async def live() -> dict[str, str]:
+    @app.get(
+        "/health/live",
+        tags=[TAG_HEALTH],
+        summary="API 프로세스 생존 확인",
+        description="인증 없이 프로세스가 HTTP 요청을 처리할 수 있는지 확인합니다.",
+        response_description="프로세스 생존 상태",
+        response_model=HealthLive,
+    )
+    async def live() -> HealthLive:
         return {"status": "ok"}
 
-    @app.get("/health/ready", tags=["health"])
-    async def ready(request: Request) -> dict[str, object]:
+    @app.get(
+        "/health/ready",
+        tags=[TAG_HEALTH],
+        summary="추론 서버 준비 상태 확인",
+        description=(
+            "인증 없이 현재 추론 backend, 모델 식별자와 대기 작업 수를 확인합니다. "
+            "모델 가중치의 사전 로딩을 의미하지는 않습니다."
+        ),
+        response_description="서버와 추론 큐 구성",
+        response_model=HealthReady,
+    )
+    async def ready(request: Request) -> HealthReady:
         return {
             "status": "ready",
             "inference_backend": settings.inference_backend,
