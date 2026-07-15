@@ -18,6 +18,7 @@
 | 문장 복원 | Qwen3-1.7B GGUF Q8_0 + llama.cpp | 공식 양자화 모델, Windows/macOS CPU 지원 |
 | 감정 분류 | KoELECTRA 한국어 6감정 분류 모델 | 한국어 문장 대상 소형 오픈소스 분류기 |
 | 음성 합성 | VoxCPM2 2B | VoxCPM 계열 중 한국어·음성 복제·감정 스타일을 함께 지원하는 버전 |
+| 가창 음색 변환 | Seed-VC 44.1kHz SVC, CPU FP32 | 무반주 원곡의 음높이·리듬을 유지하는 zero-shot singing voice conversion |
 
 VoxCPM2는 약 8GB의 모델 메모리가 필요하고 CPU 추론은 느립니다. 서버는 STT → 문장 복원 → 감정 분류 → TTS를 단일 큐에서 순차 처리하고, 기본적으로 작업이 끝날 때 모델을 해제해 16GB 환경의 메모리 경합을 줄입니다. API는 생성 요청에 `202 Accepted`를 반환하므로 프론트엔드는 작업 상태를 폴링해야 합니다.
 
@@ -31,6 +32,7 @@ macOS ARM64, CPU 4스레드 조건에서 실제 모델 전체 흐름을 검증�
 | Qwen3-1.7B Q8_0 | 손상 문장 복원 약 4~5초, idle sleep 시 RSS 약 120MB |
 | KoELECTRA 감정 분류 | 이후 추론 약 0.02초, 최대 RSS 약 1.26GB |
 | VoxCPM2 CPU | 48kHz mono WAV 생성 성공, 최대 RSS 약 8.41GB |
+| Seed-VC CPU 4-step | 3초 무반주 가창 변환 약 278초, peak footprint 약 3.1GB |
 | HTTP 전체 페이지 작업 | STT → 교정 → 감정 → 합성 70.2초, 원문 완전 일치 |
 
 Qwen은 활성 상태에서 약 4GB를 사용하지만 `--sleep-idle-seconds 2` 적용 후 메모리를 해제합니다. 전체 작업이 끝난 뒤 FastAPI worker는 약 892MB로 내려왔습니다. CPU 세대와 메모리 대역폭에 따라 시간은 달라집니다.
@@ -41,7 +43,9 @@ STT 어댑터는 `feat/dameum-stt-lora`의 학습 산출물을 `artifacts/stt/`�
 `openai/whisper-small` base 모델을 내려받아 로컬 캐시에 저장하며, 이후에는 네트워크 없이 실행합니다.
 체크인된 어댑터는 로드 전 SHA-256을 검증합니다.
 
-> 현재 자장가 기능은 부모 음색으로 가사를 부드럽게 **낭독**합니다. VoxCPM2는 노래 생성 모델이 아니므로 멜로디를 가진 가창은 별도 singing voice synthesis 모델이 필요합니다.
+기존 `/v1/lullabies`는 VoxCPM2로 가사를 부드럽게 낭독합니다. 멜로디가 필요한 기능은 별도
+`/v1/singing-lullabies` API가 Seed-VC를 사용합니다. CPU 메모리 피크를 제한하기 위해 원곡을
+무음 경계 기준 최대 3초로 나누어 순차 변환하므로, 전체 곡 생성에는 수십 분이 걸릴 수 있습니다.
 
 ## 설치
 
@@ -87,6 +91,20 @@ llama-server \
 `--sleep-idle-seconds 2`는 문장 복원이 끝난 뒤 Qwen 모델 메모리를 해제합니다. VoxCPM2와 Qwen이 동시에 상주하지 않게 하므로 16GB 환경에서는 이 옵션을 제거하지 마세요.
 
 PowerShell에서는 줄바꿈 문자로 백틱(`` ` ``)을 사용하거나 한 줄로 실행합니다.
+
+### Seed-VC CPU 런타임
+
+Seed-VC는 GPL-3.0 프로젝트이므로 FastAPI 의존성과 섞지 않고 고정 커밋의 Python 3.10 격리
+환경으로 설치합니다. Windows와 macOS에서 같은 명령을 사용합니다.
+
+```bash
+uv run python -m scripts.setup_seedvc
+```
+
+설치 위치는 `.runtime/seed-vc`이며 Git에 포함되지 않습니다. 첫 가창 변환 때 공식 Hugging Face
+체크포인트를 로컬에 내려받습니다. 이후에는 캐시로 실행합니다. FastAPI는 매 변환 전에 커밋
+`51383efd921027683c89e5348211d93ff12ac2a8`과 추적 파일 무변조 상태를 확인하고, CUDA와 Apple
+MPS를 모두 비활성화하며, API 키 등 서버 비밀값을 subprocess 환경에서 제거합니다.
 
 ### FastAPI 서버
 
@@ -135,7 +153,8 @@ HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미�
 
 ## 기능별 API 엔드포인트
 
-모든 `/v1` API는 `X-API-Key`가 필요합니다. `{profile_id}`, `{book_id}`, `{lullaby_id}`, `{job_id}`는 UUID 문자열이고 `{page_number}`는 1부터 시작합니다.
+모든 `/v1` API는 `X-API-Key`가 필요합니다. `{profile_id}`, `{book_id}`, `{lullaby_id}`,
+`{conversion_id}`, `{job_id}`는 UUID 문자열이고 `{page_number}`는 1부터 시작합니다.
 
 ### 목소리 프로필
 
@@ -177,6 +196,19 @@ HTML `<audio src>`는 `X-API-Key` 헤더를 직접 보낼 수 없습니다. 미�
 | `POST` | `/v1/lullabies/{lullaby_id}/playback-plan` | `create_lullaby_playback_plan` | 자동 반복·타이머 실행 계획 생성 |
 | `GET` | `/v1/library` | `list_library` | 책·자장가 통합 목록과 재생·삭제 URL 조회 |
 
+### Seed-VC 무반주 가창 자장가
+
+| Method | Endpoint | operationId | 기능 |
+|---|---|---|---|
+| `GET` | `/v1/singing-lullabies/catalog` | `list_singing_sources` | 한국어 무반주 원곡·가사·라이선스 목록 조회 |
+| `GET` | `/v1/singing-lullabies/catalog/{source_id}/audio` | `get_singing_source_audio` | 변환 전 가이드 보컬 미리듣기 |
+| `POST` | `/v1/singing-lullabies/conversions` | `create_singing_lullaby` | 선택 원곡을 부모 음색으로 비동기 변환 |
+| `GET` | `/v1/singing-lullabies/conversions` | `list_singing_lullabies` | 가창 자장가 변환 목록 조회 |
+| `GET` | `/v1/singing-lullabies/conversions/{conversion_id}` | `get_singing_lullaby` | 변환 상태·파라미터·결과 조회 |
+| `DELETE` | `/v1/singing-lullabies/conversions/{conversion_id}` | `delete_singing_lullaby` | 변환 결과 삭제 |
+| `GET` | `/v1/singing-lullabies/conversions/{conversion_id}/audio` | `get_singing_lullaby_audio` | 부모 음색 가창 WAV 재생 |
+| `POST` | `/v1/singing-lullabies/conversions/{conversion_id}/playback-plan` | `create_singing_lullaby_playback_plan` | 반복·타이머 자동재생 계획 생성 |
+
 ### 작업·상태
 
 | Method | Endpoint | operationId | 기능 |
@@ -208,6 +240,8 @@ npx openapi-typescript /path/to/DAMEUM/dameum-fastapi/docs/openapi.json \
 - 저장 파일명은 UUID로 생성하며 실제 경로는 API 응답에 노출하지 않음
 - 가족 기증 음성을 포함한 모든 프로필에서 음성 소유자의 명시적 동의 필수
 - 추론 큐 길이 제한과 단일 worker로 메모리 고갈 방지
+- Seed-VC 고정 커밋·작업 트리 검증, shell 미사용, CPU 강제와 subprocess 비밀값 제거
+- 자장가 카탈로그 WAV의 SHA-256 검증과 경로 이탈 차단
 
 로컬 시연이더라도 `.env`, `data/`, `models/`는 Git에 포함하지 않습니다. 실제 사용자 음성은 별도 동의 철회·보존 기간·완전 삭제 정책을 추가한 뒤 수집해야 합니다.
 
@@ -220,7 +254,8 @@ uv run python -m scripts.export_openapi
 git diff --exit-code docs/openapi.json
 ```
 
-테스트는 유효/비유효 파일 업로드, 동의 검증, 프로필 생성과 미리듣기, 페이지 재녹음 버전 교체, STT→LLM→감정→TTS 작업, 재생 manifest, 자장가와 콘텐츠 라이브러리를 포함합니다.
+테스트는 유효/비유효 파일 업로드, 동의 검증, 프로필 생성과 미리듣기, 페이지 재녹음 버전 교체,
+STT→LLM→감정→TTS 작업, 재생 manifest, 자장가·콘텐츠 라이브러리와 Seed-VC 변환 계약을 포함합니다.
 
 ## 참고 자료
 
@@ -228,5 +263,7 @@ git diff --exit-code docs/openapi.json
 - [VoxCPM2 공식 사용 가이드](https://voxcpm.readthedocs.io/en/latest/usage_guide.html)
 - [OpenAI Whisper small 공식 모델 카드](https://huggingface.co/openai/whisper-small)
 - [PEFT 공식 저장소](https://github.com/huggingface/peft)
+- [Seed-VC 공식 저장소](https://github.com/Plachtaa/seed-vc)
+- [Seed-VC 공식 모델](https://huggingface.co/Plachta/Seed-VC)
 - [Qwen3-1.7B 공식 GGUF 모델 카드](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF)
 - [FastAPI CORS 문서](https://fastapi.tiangolo.com/tutorial/cors/)

@@ -8,6 +8,8 @@ __pycache__/
 htmlcov/
 data/
 models/
+checkpoints/
+.runtime/
 *.sqlite3
 
 # 사용자별 IDE 설정

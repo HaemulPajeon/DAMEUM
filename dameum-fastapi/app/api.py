@@ -31,6 +31,7 @@ from app.models import (
     Lullaby,
     PageRecording,
     ProfileStatus,
+    SingingLullaby,
     VoiceProfile,
     VoiceSample,
 )
@@ -45,11 +46,13 @@ from app.openapi import (
     PROFILE_NOT_READY_RESPONSE,
     QUEUE_FULL_RESPONSE,
     SAMPLE_LIMIT_RESPONSE,
+    SEEDVC_UNAVAILABLE_RESPONSE,
     TAG_BOOKS,
     TAG_JOBS,
     TAG_LIBRARY,
     TAG_LULLABIES,
     TAG_PROFILES,
+    TAG_SINGING_LULLABIES,
     UNSUPPORTED_AUDIO_RESPONSE,
 )
 from app.schemas import (
@@ -67,17 +70,27 @@ from app.schemas import (
     PlaybackPage,
     PreviewRequest,
     RecordingRead,
+    SingingLullabyCreate,
+    SingingLullabyPlaybackPlan,
+    SingingLullabyRead,
+    SingingSourceRead,
     VoiceProfileCreate,
     VoiceProfileRead,
     VoiceSampleRead,
 )
 from app.security import require_api_key
+from app.singing import SingingCatalog, SingingSource
 
 ProfileId = Annotated[str, ApiPath(description="목소리 프로필 UUID")]
 SampleId = Annotated[str, ApiPath(description="음성 샘플 UUID")]
 BookId = Annotated[str, ApiPath(description="동화책 UUID")]
 PageNumber = Annotated[int, ApiPath(ge=1, description="1부터 시작하는 페이지 번호")]
 LullabyId = Annotated[str, ApiPath(description="자장가 UUID")]
+SingingSourceId = Annotated[
+    str,
+    ApiPath(pattern=r"^[a-z0-9-]+$", description="한국어 무반주 자장가 소스 ID"),
+]
+SingingLullabyId = Annotated[str, ApiPath(description="Seed-VC 가창 자장가 변환 UUID")]
 JobId = Annotated[str, ApiPath(description="비동기 작업 UUID")]
 AudioSource = Annotated[
     Literal["original", "clarified"],
@@ -176,6 +189,55 @@ def lullaby_read(lullaby: Lullaby) -> LullabyRead:
     )
 
 
+def singing_source_read(source: SingingSource) -> SingingSourceRead:
+    return SingingSourceRead(
+        id=source.id,
+        title=source.title,
+        description=source.description,
+        lyrics=source.lyrics,
+        region=source.region,
+        duration_ms=source.duration_ms,
+        audio_url=f"/v1/singing-lullabies/catalog/{source.id}/audio",
+        composition_license=source.composition_license,
+        recording_license=source.recording_license,
+        attribution=source.attribution,
+    )
+
+
+def singing_lullaby_read(item: SingingLullaby, source: SingingSource) -> SingingLullabyRead:
+    return SingingLullabyRead(
+        id=item.id,
+        source_id=item.source_id,
+        profile_id=item.profile_id,
+        title=source.title,
+        lyrics=source.lyrics,
+        status=item.status,
+        repeat_count=item.repeat_count,
+        timer_minutes=item.timer_minutes,
+        diffusion_steps=item.diffusion_steps,
+        semitone_shift=item.semitone_shift,
+        audio_url=(
+            f"/v1/singing-lullabies/conversions/{item.id}/audio" if item.audio_path else None
+        ),
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+def require_singing_source(catalog: SingingCatalog, source_id: str) -> SingingSource:
+    source = catalog.get(source_id)
+    if source is None:
+        # DB 레코드와 배포된 불변 카탈로그가 어긋나면 잘못된 성공 응답을 만들지 않는다.
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "singing_catalog_inconsistent",
+                "message": "가창 자장가 카탈로그와 저장 데이터가 일치하지 않습니다",
+            },
+        )
+    return source
+
+
 async def get_profile_with_samples(session: AsyncSession, profile_id: str) -> VoiceProfile:
     profile = await session.scalar(
         select(VoiceProfile)
@@ -228,7 +290,7 @@ def job_accepted(job: Job) -> JobAccepted:
     return JobAccepted(job_id=job.id, status_url=f"/v1/jobs/{job.id}")
 
 
-def file_response(path_value: str | None, media_type: str) -> FileResponse:
+def file_response(path_value: str | Path | None, media_type: str) -> FileResponse:
     if not path_value:
         raise not_found("미디어")
     path = Path(path_value)
@@ -440,7 +502,10 @@ async def delete_voice_profile(
     lullaby_count = await session.scalar(
         select(func.count(Lullaby.id)).where(Lullaby.profile_id == profile_id)
     )
-    if recording_count or lullaby_count:
+    singing_lullaby_count = await session.scalar(
+        select(func.count(SingingLullaby.id)).where(SingingLullaby.profile_id == profile_id)
+    )
+    if recording_count or lullaby_count or singing_lullaby_count:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -957,6 +1022,205 @@ async def delete_lullaby(
         raise not_found("자장가")
     path = lullaby.audio_path
     await session.delete(lullaby)
+    await session.commit()
+    request.app.state.media_store.delete(path)
+
+
+@router.get(
+    "/singing-lullabies/catalog",
+    response_model=list[SingingSourceRead],
+    tags=[TAG_SINGING_LULLABIES],
+    summary="한국어 무반주 자장가 카탈로그 조회",
+    description=(
+        "Seed-VC 변환용으로 수집·생성한 한국 전래 무반주 가이드 보컬의 제목, 가사, "
+        "길이, 라이선스와 원본 재생 URL을 반환합니다."
+    ),
+    response_description="선택 가능한 한국어 무반주 자장가 목록",
+)
+async def list_singing_sources(request: Request) -> list[SingingSourceRead]:
+    return [singing_source_read(item) for item in request.app.state.singing_catalog.list()]
+
+
+@router.get(
+    "/singing-lullabies/catalog/{source_id}/audio",
+    response_class=FileResponse,
+    tags=[TAG_SINGING_LULLABIES],
+    summary="무반주 자장가 원본 미리듣기",
+    description="목소리 변환 전 한국어 가이드 보컬 WAV를 Range 요청 가능한 형태로 반환합니다.",
+    responses=AUDIO_FILE_RESPONSE,
+)
+async def get_singing_source_audio(request: Request, source_id: SingingSourceId) -> FileResponse:
+    source = request.app.state.singing_catalog.get(source_id)
+    if source is None:
+        raise not_found("무반주 자장가 소스")
+    return file_response(source.audio_path, "audio/wav")
+
+
+@router.post(
+    "/singing-lullabies/conversions",
+    response_model=JobAccepted,
+    status_code=202,
+    tags=[TAG_SINGING_LULLABIES],
+    summary="Seed-VC 부모 음색 자장가 변환",
+    description=(
+        "카탈로그의 한국어 무반주 자장가를 선택해 음높이·리듬을 유지하면서 ready 상태인 "
+        "부모 목소리 프로필로 비동기 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 별도입니다."
+    ),
+    response_description="접수된 Seed-VC 가창 음색 변환 작업",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: PROFILE_NOT_READY_RESPONSE,
+        503: SEEDVC_UNAVAILABLE_RESPONSE,
+    },
+)
+async def create_singing_lullaby(
+    request: Request,
+    payload: SingingLullabyCreate,
+    session: AsyncSession = Depends(session_dependency),
+) -> JobAccepted:
+    source = request.app.state.singing_catalog.get(payload.source_id)
+    if source is None:
+        raise not_found("무반주 자장가 소스")
+    profile = await get_profile_with_samples(session, payload.profile_id)
+    if profile.status != ProfileStatus.READY.value:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "profile_not_ready", "message": "준비된 목소리 프로필이 필요합니다"},
+        )
+    settings = request.app.state.settings
+    if settings.inference_backend == "real" and not settings.seedvc_runtime_ready:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "seedvc_runtime_unavailable",
+                "message": "Seed-VC CPU 런타임을 먼저 설치해야 합니다",
+            },
+        )
+    item_data = payload.model_dump()
+    item_data["diffusion_steps"] = payload.diffusion_steps or settings.seedvc_diffusion_steps
+    item = SingingLullaby(**item_data)
+    session.add(item)
+    await session.flush()
+    job = Job(kind="seedvc_lullaby_conversion", target_id=item.id)
+    session.add(job)
+    await session.commit()
+    await enqueue_or_fail(request, session, job)
+    return job_accepted(job)
+
+
+@router.get(
+    "/singing-lullabies/conversions",
+    response_model=list[SingingLullabyRead],
+    tags=[TAG_SINGING_LULLABIES],
+    summary="Seed-VC 가창 자장가 목록 조회",
+    description="최근 변환 순으로 선택 원곡, 부모 프로필, 생성 상태와 재생 설정을 조회합니다.",
+    response_description="Seed-VC 가창 자장가 변환 목록",
+)
+async def list_singing_lullabies(
+    request: Request,
+    session: AsyncSession = Depends(session_dependency),
+) -> list[SingingLullabyRead]:
+    items = (
+        await session.scalars(select(SingingLullaby).order_by(SingingLullaby.updated_at.desc()))
+    ).all()
+    catalog = request.app.state.singing_catalog
+    return [
+        singing_lullaby_read(item, require_singing_source(catalog, item.source_id))
+        for item in items
+    ]
+
+
+@router.get(
+    "/singing-lullabies/conversions/{conversion_id}",
+    response_model=SingingLullabyRead,
+    tags=[TAG_SINGING_LULLABIES],
+    summary="Seed-VC 가창 자장가 상세 조회",
+    description="단일 변환의 원곡·프로필·파라미터·상태와 결과 재생 URL을 조회합니다.",
+    response_description="Seed-VC 가창 자장가 상세",
+    responses={404: NOT_FOUND_RESPONSE},
+)
+async def get_singing_lullaby(
+    request: Request,
+    conversion_id: SingingLullabyId,
+    session: AsyncSession = Depends(session_dependency),
+) -> SingingLullabyRead:
+    item = await session.get(SingingLullaby, conversion_id)
+    if item is None:
+        raise not_found("가창 자장가")
+    source = require_singing_source(request.app.state.singing_catalog, item.source_id)
+    return singing_lullaby_read(item, source)
+
+
+@router.get(
+    "/singing-lullabies/conversions/{conversion_id}/audio",
+    response_class=FileResponse,
+    tags=[TAG_SINGING_LULLABIES],
+    summary="Seed-VC 변환 자장가 재생",
+    description="멜로디를 유지하고 부모 음색으로 변환한 WAV를 Range 요청 가능하게 반환합니다.",
+    responses=AUDIO_FILE_RESPONSE,
+)
+async def get_singing_lullaby_audio(
+    conversion_id: SingingLullabyId,
+    session: AsyncSession = Depends(session_dependency),
+) -> FileResponse:
+    item = await session.get(SingingLullaby, conversion_id)
+    if item is None:
+        raise not_found("가창 자장가")
+    return file_response(item.audio_path, "audio/wav")
+
+
+@router.post(
+    "/singing-lullabies/conversions/{conversion_id}/playback-plan",
+    response_model=SingingLullabyPlaybackPlan,
+    tags=[TAG_SINGING_LULLABIES],
+    summary="Seed-VC 자장가 자동재생 계획 생성",
+    description="저장된 설정 또는 이번 요청 값을 반복·타이머 자동재생 계약으로 반환합니다.",
+    response_description="프론트 자동재생 실행 계획",
+    responses={404: NOT_FOUND_RESPONSE, 409: PROFILE_NOT_READY_RESPONSE},
+)
+async def create_singing_lullaby_playback_plan(
+    conversion_id: SingingLullabyId,
+    payload: LullabyPlaybackPlanRequest,
+    session: AsyncSession = Depends(session_dependency),
+) -> SingingLullabyPlaybackPlan:
+    item = await session.get(SingingLullaby, conversion_id)
+    if item is None:
+        raise not_found("가창 자장가")
+    if item.status != JobStatus.SUCCEEDED.value or not item.audio_path:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "lullaby_not_ready", "message": "변환 완료 후 재생할 수 있습니다"},
+        )
+    repeat_count = payload.repeat_count or item.repeat_count
+    timer_minutes = payload.timer_minutes or item.timer_minutes
+    return SingingLullabyPlaybackPlan(
+        conversion_id=item.id,
+        audio_url=f"/v1/singing-lullabies/conversions/{item.id}/audio",
+        repeat_count=repeat_count,
+        loop=repeat_count > 1,
+        timer_seconds=timer_minutes * 60 if timer_minutes else None,
+        stop_on_timer=timer_minutes is not None,
+    )
+
+
+@router.delete(
+    "/singing-lullabies/conversions/{conversion_id}",
+    status_code=204,
+    tags=[TAG_SINGING_LULLABIES],
+    summary="Seed-VC 가창 자장가 삭제",
+    description="변환 메타데이터와 생성 WAV를 삭제하며 카탈로그 원본은 유지합니다.",
+    responses={404: NOT_FOUND_RESPONSE},
+)
+async def delete_singing_lullaby(
+    request: Request,
+    conversion_id: SingingLullabyId,
+    session: AsyncSession = Depends(session_dependency),
+) -> None:
+    item = await session.get(SingingLullaby, conversion_id)
+    if item is None:
+        raise not_found("가창 자장가")
+    path = item.audio_path
+    await session.delete(item)
     await session.commit()
     request.app.state.media_store.delete(path)
 

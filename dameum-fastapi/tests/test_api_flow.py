@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import shutil
+import subprocess
 import time
 import wave
 from pathlib import Path
@@ -12,6 +14,7 @@ from PIL import Image
 from app.config import Settings
 from app.inference import InferencePipeline
 from app.main import create_app
+from app.singing import SeedVCRunner
 
 API_KEY = "test-api-key-that-is-longer-than-thirty-two-bytes"
 HEADERS = {"X-API-Key": API_KEY}
@@ -165,6 +168,42 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         assert manifest["pages"][1]["clarified_url"] is None
         assert manifest["pages"][1]["available_sources"] == []
 
+        catalog = client.get("/v1/singing-lullabies/catalog", headers=HEADERS)
+        assert catalog.status_code == 200
+        assert len(catalog.json()) == 3
+        source = catalog.json()[0]
+        assert source["recording_license"] == "DAMEUM_DEMO_ASSET"
+        source_audio = client.get(source["audio_url"], headers=HEADERS)
+        assert source_audio.status_code == 200
+        assert source_audio.headers["content-type"].startswith("audio/wav")
+
+        response = client.post(
+            "/v1/singing-lullabies/conversions",
+            headers=HEADERS,
+            json={
+                "source_id": source["id"],
+                "profile_id": profile_id,
+                "repeat_count": 2,
+                "timer_minutes": 15,
+            },
+        )
+        assert response.status_code == 202, response.text
+        assert wait_job(client, response.json()["job_id"])["status"] == "succeeded"
+        conversions = client.get("/v1/singing-lullabies/conversions", headers=HEADERS).json()
+        assert len(conversions) == 1
+        conversion = conversions[0]
+        assert conversion["title"] == source["title"]
+        assert conversion["diffusion_steps"] == 10
+        assert client.get(conversion["audio_url"], headers=HEADERS).status_code == 200
+        singing_plan = client.post(
+            f"/v1/singing-lullabies/conversions/{conversion['id']}/playback-plan",
+            headers=HEADERS,
+            json={},
+        )
+        assert singing_plan.status_code == 200
+        assert singing_plan.json()["repeat_count"] == 2
+        assert singing_plan.json()["timer_seconds"] == 900
+
         response = client.post(
             "/v1/lullabies",
             headers=HEADERS,
@@ -201,6 +240,12 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         assert client.delete(lullaby["delete_url"], headers=HEADERS).status_code == 204
         remaining = client.get("/v1/library", headers=HEADERS).json()
         assert {item["kind"] for item in remaining} == {"book"}
+        assert (
+            client.delete(
+                f"/v1/singing-lullabies/conversions/{conversion['id']}", headers=HEADERS
+            ).status_code
+            == 204
+        )
 
 
 def test_upload_and_consent_validation(tmp_path: Path) -> None:
@@ -321,3 +366,63 @@ def test_stt_rejects_tampered_adapter(tmp_path: Path) -> None:
         assert str(exc) == "STT LoRA 어댑터 무결성 검증에 실패했습니다"
     else:
         raise AssertionError("변조된 STT 어댑터가 거부되지 않았습니다")
+
+
+def test_seedvc_runner_forces_cpu_and_sanitizes_secrets(monkeypatch, tmp_path: Path) -> None:
+    runtime = tmp_path / "seed-vc"
+    runtime.mkdir()
+    (runtime / "inference.py").write_text("# pinned Seed-VC", encoding="utf-8")
+    python = runtime / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    source = tmp_path / "source.wav"
+    reference = tmp_path / "data" / "audio" / "profiles" / "reference.wav"
+    reference.parent.mkdir(parents=True)
+    source.write_bytes(wav_bytes())
+    reference.write_bytes(wav_bytes())
+    output = tmp_path / "data" / "audio" / "seedvc" / "generated" / "result.wav"
+    settings = Settings(
+        environment="test",
+        api_key=API_KEY,
+        data_dir=tmp_path / "data",
+        inference_backend="real",
+        seedvc_runtime_dir=runtime,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured["command"] = command
+        captured["environment"] = kwargs["env"]
+        work = Path(command[command.index("--output") + 1])
+        shutil.copyfile(source, work / "converted.wav")
+        return subprocess.CompletedProcess(command, 0, "ok", "")
+
+    monkeypatch.setenv("DAMEUM_API_KEY", "must-not-leak")
+    monkeypatch.setattr(SeedVCRunner, "_verify_runtime", lambda *_: None)
+    monkeypatch.setattr("app.singing.subprocess.run", fake_run)
+    SeedVCRunner(settings).convert(source, reference, output, 10, 0)
+
+    command = captured["command"]
+    environment = captured["environment"]
+    assert "--f0-condition" in command and command[command.index("--f0-condition") + 1] == "True"
+    assert "--fp16" in command and command[command.index("--fp16") + 1] == "False"
+    assert environment["CUDA_VISIBLE_DEVICES"] == "-1"
+    assert "DAMEUM_API_KEY" not in environment
+    assert output.read_bytes() == source.read_bytes()
+
+
+def test_seedvc_long_source_is_split_for_cpu_memory(tmp_path: Path) -> None:
+    source = tmp_path / "long-source.wav"
+    source.write_bytes(wav_bytes(7.0))
+    work = tmp_path / "work"
+    work.mkdir()
+
+    chunks = SeedVCRunner._split_source(source, work)
+
+    assert len(chunks) == 3
+    durations = []
+    for chunk in chunks:
+        with wave.open(str(chunk), "rb") as audio:
+            durations.append(audio.getnframes() / audio.getframerate())
+    assert max(durations) <= 3.2
+    assert 6.9 <= sum(durations) <= 7.1

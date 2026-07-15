@@ -18,8 +18,10 @@ from app.models import (
     Lullaby,
     PageRecording,
     ProfileStatus,
+    SingingLullaby,
     VoiceProfile,
 )
+from app.singing import SeedVCRunner, SingingCatalog
 from app.storage import MediaStore
 
 
@@ -30,11 +32,15 @@ class JobQueue:
         session_factory: async_sessionmaker[AsyncSession],
         pipeline: InferencePipeline,
         media_store: MediaStore,
+        singing_catalog: SingingCatalog,
+        seedvc_runner: SeedVCRunner,
     ):
         self.settings = settings
         self.session_factory = session_factory
         self.pipeline = pipeline
         self.media_store = media_store
+        self.singing_catalog = singing_catalog
+        self.seedvc_runner = seedvc_runner
         self.queue: asyncio.Queue[str] = asyncio.Queue(maxsize=settings.max_pending_jobs)
         self.worker_task: asyncio.Task[None] | None = None
 
@@ -102,6 +108,8 @@ class JobQueue:
                 await self._process_preview(job_id)
             elif kind == "lullaby_generation":
                 await self._process_lullaby(job_id)
+            elif kind == "seedvc_lullaby_conversion":
+                await self._process_singing_lullaby(job_id)
             else:
                 raise RuntimeError(f"알 수 없는 작업 종류: {kind}")
         except asyncio.CancelledError:
@@ -271,6 +279,65 @@ class JobQueue:
             await session.commit()
         self.media_store.delete(old_path)
 
+    async def _process_singing_lullaby(self, job_id: str) -> None:
+        async with self.session_factory() as session:
+            job = await session.get(Job, job_id)
+            item = await session.get(SingingLullaby, job.target_id)
+            if item is None:
+                raise RuntimeError("가창 자장가 변환을 찾을 수 없습니다")
+            source = self.singing_catalog.get(item.source_id)
+            if source is None:
+                raise RuntimeError("무반주 자장가 소스를 찾을 수 없습니다")
+            profile = await session.scalar(
+                select(VoiceProfile)
+                .where(VoiceProfile.id == item.profile_id)
+                .options(selectinload(VoiceProfile.samples))
+            )
+            if profile is None or len(profile.samples) < 5:
+                raise RuntimeError("사용 가능한 목소리 프로필이 없습니다")
+            reference = self.media_store.profile_reference_path(profile.id)
+            if not reference.is_file():
+                reference = self.media_store.build_profile_reference(
+                    profile.id,
+                    [
+                        Path(sample.normalized_path)
+                        for sample in sorted(
+                            profile.samples,
+                            key=lambda sample: sample.duration_ms,
+                            reverse=True,
+                        )
+                    ],
+                )
+            diffusion_steps = item.diffusion_steps
+            semitone_shift = item.semitone_shift
+        await self._progress(job_id, 20)
+        output = (
+            self.settings.data_dir / "audio" / "seedvc" / "generated" / f"{uuid.uuid4().hex}.wav"
+        ).resolve()
+        await asyncio.to_thread(
+            self.seedvc_runner.convert,
+            source.audio_path,
+            reference,
+            output,
+            diffusion_steps,
+            semitone_shift,
+        )
+        await self._progress(job_id, 95)
+        async with self.session_factory() as session:
+            job = await session.get(Job, job_id)
+            item = await session.get(SingingLullaby, job.target_id)
+            if item is None:
+                self.media_store.delete(output)
+                await self._supersede(session, job)
+                return
+            old_path = item.audio_path
+            item.audio_path = str(output)
+            item.status = JobStatus.SUCCEEDED.value
+            job.status = JobStatus.SUCCEEDED.value
+            job.progress = 100
+            await session.commit()
+        self.media_store.delete(old_path)
+
     async def _progress(self, job_id: str, progress: int) -> None:
         async with self.session_factory() as session:
             job = await session.get(Job, job_id)
@@ -296,6 +363,10 @@ class JobQueue:
                     target.status = ProfileStatus.FAILED.value
             elif job.kind == "lullaby_generation":
                 target = await session.get(Lullaby, job.target_id)
+                if target is not None:
+                    target.status = JobStatus.FAILED.value
+            elif job.kind == "seedvc_lullaby_conversion":
+                target = await session.get(SingingLullaby, job.target_id)
                 if target is not None:
                     target.status = JobStatus.FAILED.value
             await session.commit()
