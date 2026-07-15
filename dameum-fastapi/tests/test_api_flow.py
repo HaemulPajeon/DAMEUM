@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import time
 import wave
@@ -49,6 +50,7 @@ def make_client(tmp_path: Path) -> TestClient:
         api_key=API_KEY,
         data_dir=tmp_path,
         inference_backend="mock",
+        stt_model="openai/whisper-small",
         cors_origins=["http://localhost:3000"],
     )
     return TestClient(create_app(settings))
@@ -279,3 +281,43 @@ def test_real_model_label_order_and_original_format(monkeypatch, tmp_path: Path)
     pipeline = InferencePipeline(settings)
     expected = "달님이 환하게 웃었어요."
     assert pipeline.correct_sentence("달님이 환하게 우떠요", expected) == expected
+
+
+def test_stt_adapter_integrity_and_health_contract(tmp_path: Path) -> None:
+    settings = Settings(
+        environment="test",
+        api_key=API_KEY,
+        data_dir=tmp_path,
+        inference_backend="mock",
+    )
+    adapter = settings.resolved_stt_adapter_dir / "adapter_model.safetensors"
+    assert adapter.is_file()
+    assert hashlib.sha256(adapter.read_bytes()).hexdigest() == settings.stt_adapter_sha256
+
+    with TestClient(create_app(settings)) as client:
+        response = client.get("/health/ready")
+    assert response.status_code == 200
+    assert response.json()["models"]["stt"] == (
+        "openai/whisper-small+whisper-small-lora-dysarthria"
+    )
+
+
+def test_stt_rejects_tampered_adapter(tmp_path: Path) -> None:
+    adapter_dir = tmp_path / "adapter"
+    adapter_dir.mkdir()
+    (adapter_dir / "adapter_config.json").write_text("{}", encoding="utf-8")
+    (adapter_dir / "adapter_model.safetensors").write_bytes(b"tampered")
+    settings = Settings(
+        environment="test",
+        api_key=API_KEY,
+        data_dir=tmp_path / "data",
+        inference_backend="real",
+        stt_adapter_dir=adapter_dir,
+    )
+    pipeline = InferencePipeline(settings)
+    try:
+        pipeline._load_stt()
+    except RuntimeError as exc:
+        assert str(exc) == "STT LoRA 어댑터 무결성 검증에 실패했습니다"
+    else:
+        raise AssertionError("변조된 STT 어댑터가 거부되지 않았습니다")

@@ -14,7 +14,7 @@
 
 | 단계 | 모델/런타임 | 선정 이유 |
 |---|---|---|
-| STT | faster-whisper `small`, CPU INT8 | CPU 메모리와 한국어 인식 품질의 균형 |
+| STT | Whisper small + 담음 구음장애 LoRA, CPU FP32 | AI-Hub 한국어 구음장애 음성에 미세조정한 프로젝트 모델 |
 | 문장 복원 | Qwen3-1.7B GGUF Q8_0 + llama.cpp | 공식 양자화 모델, Windows/macOS CPU 지원 |
 | 감정 분류 | KoELECTRA 한국어 6감정 분류 모델 | 한국어 문장 대상 소형 오픈소스 분류기 |
 | 음성 합성 | VoxCPM2 2B | VoxCPM 계열 중 한국어·음성 복제·감정 스타일을 함께 지원하는 버전 |
@@ -27,13 +27,19 @@ macOS ARM64, CPU 4스레드 조건에서 실제 모델 전체 흐름을 검증�
 
 | 항목 | 결과 |
 |---|---|
-| faster-whisper small CPU INT8 | 합성 한국어 WAV 전사 성공, 최대 RSS 약 1.08GB |
+| Whisper small + 구음장애 LoRA CPU FP32 | 6.6초 한국어 WAV 전사 약 16~21초, 최대 RSS 약 1.95GB |
 | Qwen3-1.7B Q8_0 | 손상 문장 복원 약 4~5초, idle sleep 시 RSS 약 120MB |
 | KoELECTRA 감정 분류 | 이후 추론 약 0.02초, 최대 RSS 약 1.26GB |
 | VoxCPM2 CPU | 48kHz mono WAV 생성 성공, 최대 RSS 약 8.41GB |
 | HTTP 전체 페이지 작업 | STT → 교정 → 감정 → 합성 70.2초, 원문 완전 일치 |
 
 Qwen은 활성 상태에서 약 4GB를 사용하지만 `--sleep-idle-seconds 2` 적용 후 메모리를 해제합니다. 전체 작업이 끝난 뒤 FastAPI worker는 약 892MB로 내려왔습니다. CPU 세대와 메모리 대역폭에 따라 시간은 달라집니다.
+
+STT 어댑터는 `feat/dameum-stt-lora`의 학습 산출물을 `artifacts/stt/`에 포함한 것입니다. held-out
+125개 음성에서 CER 64.3%에서 53.6%로 개선됐지만, 약 24분 분량으로 학습한 시연용 모델이므로
+의료·안전 관련 문장의 정확성을 보장하지 않습니다. 서버는 시작 후 첫 실제 STT 요청에서
+`openai/whisper-small` base 모델을 내려받아 로컬 캐시에 저장하며, 이후에는 네트워크 없이 실행합니다.
+체크인된 어댑터는 로드 전 SHA-256을 검증합니다.
 
 > 현재 자장가 기능은 부모 음색으로 가사를 부드럽게 **낭독**합니다. VoxCPM2는 노래 생성 모델이 아니므로 멜로디를 가진 가창은 별도 singing voice synthesis 모델이 필요합니다.
 
@@ -220,6 +226,7 @@ git diff --exit-code docs/openapi.json
 
 - [VoxCPM2 공식 설치 문서](https://voxcpm.readthedocs.io/en/latest/installation.html)
 - [VoxCPM2 공식 사용 가이드](https://voxcpm.readthedocs.io/en/latest/usage_guide.html)
-- [faster-whisper 공식 저장소](https://github.com/SYSTRAN/faster-whisper)
+- [OpenAI Whisper small 공식 모델 카드](https://huggingface.co/openai/whisper-small)
+- [PEFT 공식 저장소](https://github.com/huggingface/peft)
 - [Qwen3-1.7B 공식 GGUF 모델 카드](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF)
 - [FastAPI CORS 문서](https://fastapi.tiangolo.com/tutorial/cors/)
