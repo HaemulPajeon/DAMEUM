@@ -200,7 +200,7 @@ queued -> running -> succeeded
 
 | 필드 | 의미 |
 |---|---|
-| `transcript` | faster-whisper가 인식한 구음 원문 |
+| `transcript` | 구음장애 음성 LoRA를 적용한 Whisper가 인식한 구음 원문 |
 | `corrected_text` | LLM이 의도를 복원한 뒤 합성 입력으로 확정한 페이지 원문. `text`와 완전히 일치 |
 | `emotion`, `emotion_score` | 한국어 감정 분류 label과 신뢰도 |
 | `original_url` | 정규화된 부모 원본 음성 |

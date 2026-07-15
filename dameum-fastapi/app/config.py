@@ -37,7 +37,12 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8081/v1"
     llm_api_key: str = "local-only"
     llm_model: str = "Qwen3-1.7B"
-    stt_model: str = "small"
+    stt_model: str = "openai/whisper-small"
+    stt_adapter_dir: Path = Path("./artifacts/stt/whisper-small-lora-dysarthria")
+    stt_adapter_sha256: str = Field(
+        default="9772a95bfd1d77716ddae060790a6c40ad80f65a31d551caf7ce12f5a242ecbe",
+        pattern=r"^[0-9a-f]{64}$",
+    )
     emotion_model: str = "jeongyoonhuh/koelectra-emotion-6class"
     voxcpm_model: str = "openbmb/VoxCPM2"
     cpu_threads: int = Field(default=max(1, min(4, os.cpu_count() or 2)), ge=1, le=32)
@@ -70,6 +75,13 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return f"sqlite+aiosqlite:///{(self.data_dir / 'dameum.sqlite3').resolve()}"
+
+    @property
+    def resolved_stt_adapter_dir(self) -> Path:
+        if self.stt_adapter_dir.is_absolute():
+            return self.stt_adapter_dir.resolve()
+        project_dir = Path(__file__).resolve().parents[1]
+        return (project_dir / self.stt_adapter_dir).resolve()
 
     def prepare_directories(self) -> None:
         for path in (

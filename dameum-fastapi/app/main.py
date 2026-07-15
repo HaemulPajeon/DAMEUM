@@ -131,7 +131,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "inference_backend": settings.inference_backend,
             "queued_jobs": request.app.state.job_queue.queue.qsize(),
             "models": {
-                "stt": settings.stt_model,
+                "stt": f"{settings.stt_model}+{settings.resolved_stt_adapter_dir.name}",
                 "correction": settings.llm_model,
                 "emotion": settings.emotion_model,
                 "tts": settings.voxcpm_model,

@@ -809,9 +809,9 @@
             "type": "string"
           },
           "stt": {
-            "description": "STT 모델 식별자",
+            "description": "STT 기본 모델과 구음장애 LoRA 어댑터 식별자",
             "examples": [
-              "small"
+              "openai/whisper-small+whisper-small-lora-dysarthria"
             ],
             "title": "Stt",
             "type": "string"
@@ -1094,7 +1094,7 @@
                 "type": "null"
               }
             ],
-            "description": "faster-whisper STT 결과",
+            "description": "구음장애 음성 LoRA를 적용한 Whisper STT 결과",
             "title": "Transcript"
           },
           "version": {

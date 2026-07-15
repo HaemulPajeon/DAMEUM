@@ -42,7 +42,10 @@ class HealthLive(ApiModel):
 
 
 class ModelConfiguration(ApiModel):
-    stt: str = Field(description="STT 모델 식별자", examples=["small"])
+    stt: str = Field(
+        description="STT 기본 모델과 구음장애 LoRA 어댑터 식별자",
+        examples=["openai/whisper-small+whisper-small-lora-dysarthria"],
+    )
     correction: str = Field(description="문장 복원 LLM 식별자", examples=["Qwen3-1.7B"])
     emotion: str = Field(
         description="감정 분류 모델 식별자",
@@ -181,7 +184,10 @@ class RecordingRead(ApiModel):
     profile_id: str = Field(description="합성에 사용한 목소리 프로필 UUID")
     status: JobStatusValue = Field(description="페이지 음성 처리 상태")
     version: int = Field(description="페이지 재녹음 버전", ge=1)
-    transcript: str | None = Field(default=None, description="faster-whisper STT 결과")
+    transcript: str | None = Field(
+        default=None,
+        description="구음장애 음성 LoRA를 적용한 Whisper STT 결과",
+    )
     corrected_text: str | None = Field(default=None, description="LLM이 복원한 최종 합성 문장")
     emotion: EmotionValue | None = Field(default=None, description="한국어 감정 분류 결과")
     emotion_score: float | None = Field(
