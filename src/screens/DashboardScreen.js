@@ -2,16 +2,16 @@ import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-nativ
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import BottomNav from '../components/BottomNav';
+import { useRecentItems } from '../store/RecentItemsContext';
 
-const NAV_ITEMS = [
-    { key: 'home', label: '홈', icon: 'home' },
-    { key: 'library', label: '라이브러리', icon: 'grid' },
-    { key: 'book', label: '동화책', icon: 'add-circle' },
-    { key: 'lullaby', label: '자장가', icon: 'moon' },
-    { key: 'profile', label: '프로필', icon: 'person' },
-];
+export default function DashboardScreen({ navigation }) {
+    const { items } = useRecentItems();
+    const lullabyItems = items.filter((item) => item.type === 'lullaby');
+    const bookItems = items.filter((item) => item.type === 'book');
+    const latest = lullabyItems[0];
+    const recentBooks = bookItems.slice(0, 3);
 
-export default function DashboardScreen() {
     return (
         <LinearGradient
             colors={['#d3d8ff', 'rgba(195,203,255,0.4)', 'rgba(206,212,255,0.15)']}
@@ -26,17 +26,26 @@ export default function DashboardScreen() {
                     </Text>
 
                     <Text style={styles.sectionTitle}>이어서 들어요</Text>
-                    <View style={styles.continueCard}>
-                        <Text style={styles.continueTitle}>
-                            잠자리 토끼 <Text style={styles.continueSub}>어제 재생</Text>
-                        </Text>
-                        <TouchableOpacity style={styles.playBtn}>
-                            <Text style={styles.playBtnText}>재생</Text>
-                        </TouchableOpacity>
-                    </View>
+                    {latest ? (
+                        <View style={styles.continueCard}>
+                            <Text style={styles.continueTitle}>
+                                {latest.title} <Text style={styles.continueSub}>{latest.meta}</Text>
+                            </Text>
+                            <TouchableOpacity style={styles.playBtn}>
+                                <Text style={styles.playBtnText}>재생</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>최근에 들은 자장가가 없어요.</Text>
+                        </View>
+                    )}
 
                     <View style={styles.actionGrid}>
-                        <TouchableOpacity style={styles.actionCardBlue}>
+                        <TouchableOpacity
+                            style={styles.actionCardBlue}
+                            onPress={() => navigation.navigate('BookReading')}
+                        >
                             <View>
                                 <Text style={styles.actionTitle}>새 동화책 담음</Text>
                                 <Text style={styles.actionSubBlue}>동화책을 녹음하기</Text>
@@ -44,7 +53,10 @@ export default function DashboardScreen() {
                             <MaterialCommunityIcons name="book-open-page-variant" size={34} color="#7d88e8" style={styles.actionIcon} />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.actionCardCream}>
+                        <TouchableOpacity
+                            style={styles.actionCardCream}
+                            onPress={() => navigation.navigate('LullabySinging')}
+                        >
                             <View>
                                 <Text style={styles.actionTitle}>자장가 담음</Text>
                                 <Text style={styles.actionSubCream}>자장가 녹음하기</Text>
@@ -54,22 +66,23 @@ export default function DashboardScreen() {
                     </View>
 
                     <Text style={styles.sectionTitle}>최근 읽은 책이에요</Text>
-                    <View style={styles.recentCard}>
-                        <Text style={styles.recentTitle}>
-                            잠자리 토끼 <Text style={styles.recentMeta}>5페이지・7/10</Text>
-                        </Text>
-                        <Ionicons name="chevron-forward" size={17} color="#848484" />
-                    </View>
+                    {recentBooks.length > 0 ? (
+                        recentBooks.map((item) => (
+                            <View key={item.id} style={styles.recentCard}>
+                                <Text style={styles.recentTitle}>
+                                    {item.title} <Text style={styles.recentMeta}>{item.meta}</Text>
+                                </Text>
+                                <Ionicons name="chevron-forward" size={17} color="#848484" />
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>최근에 읽은 책이 없어요.</Text>
+                        </View>
+                    )}
                 </View>
 
-                <View style={styles.bottomNav}>
-                    {NAV_ITEMS.map((item, idx) => (
-                        <TouchableOpacity key={item.key} style={styles.navItem}>
-                            <Ionicons name={item.icon} size={21} color={idx === 0 ? '#6071e7' : '#575757'} />
-                            <Text style={[styles.navLabel, idx === 0 && styles.navLabelActive]}>{item.label}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                <BottomNav navigation={navigation} active="home" />
             </SafeAreaView>
         </LinearGradient>
     );
@@ -115,6 +128,12 @@ const styles = StyleSheet.create({
     },
     recentTitle: { fontSize: 17, fontWeight: '600', color: '#3d3d3a' },
     recentMeta: { fontSize: 13, fontWeight: '400', color: '#848484' },
+    emptyCard: {
+        marginTop: 4, backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 15,
+        borderWidth: 1, borderColor: '#dedede', borderStyle: 'dashed',
+        paddingVertical: 22, alignItems: 'center', justifyContent: 'center',
+    },
+    emptyText: { fontSize: 14, fontWeight: '500', color: '#9f9f9f' },
     bottomNav: {
         backgroundColor: '#fff',
         borderTopWidth: 0.6, borderTopColor: '#dfe2e1',

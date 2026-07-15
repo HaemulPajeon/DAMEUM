@@ -17,7 +17,7 @@ export default function IntroScreen({ navigation }) {
                     <Text style={styles.tagline}>부모와 감정과 목소리를 담음</Text>
                 </View>
                 <View style={styles.ctaWrap}>
-                    <TouchableOpacity style={styles.cta} onPress={() => navigation.navigate('Profile')}>
+                    <TouchableOpacity style={styles.cta} onPress={() => navigation.navigate('Dashboard')}>
                         <Text style={styles.ctaText}>시작하기</Text>
                     </TouchableOpacity>
                 </View>

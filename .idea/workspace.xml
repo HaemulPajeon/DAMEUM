@@ -2,18 +2,25 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="71d61ffb-2127-4681-bafb-e472da52f708" name="변경" comment="..">
-      <change afterPath="$PROJECT_DIR$/App.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/components/BackButton.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/components/HomeIndicator.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/components/PhoneFrame.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/DashboardScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/HomeScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/IntroScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/ProfileCreateScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/ProfileScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/SplashScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/VoiceRegisterRecordingScreen.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/VoiceRegisterScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/api/client.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/BottomNav.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/TitleSheetOverlay.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/BookPlaybackScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/BookReadingScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/BookTitleScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/LibraryScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/LullabyPlaybackScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/LullabySingingScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/LullabyTitleScreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/store/RecentItemsContext.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/App.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/DashboardScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/DashboardScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/IntroScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/IntroScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/ProfileScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/ProfileScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/VoiceRegisterRecordingScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/VoiceRegisterRecordingScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/VoiceRegisterScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/VoiceRegisterScreen.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

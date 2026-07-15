@@ -1,8 +1,21 @@
+import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+function formatElapsed(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
 export default function VoiceRegisterRecordingScreen({ navigation }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed((prev) => prev + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -31,7 +44,7 @@ export default function VoiceRegisterRecordingScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.recordArea}>
-            <Text style={styles.timer}>00:02</Text>
+            <Text style={styles.timer}>{formatElapsed(elapsed)}</Text>
 
             <View style={styles.circleOuter}>
               <View style={styles.circleInner}>
@@ -51,7 +64,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f6ff' },
   safe: { flex: 1 },
   header: {
-    height: 57, backgroundColor: '#fff',
+    height: 101, paddingTop: 44, backgroundColor: '#fff',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 21,
   },

@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f6ff' },
   safe: { flex: 1 },
   header: {
-    height: 57, backgroundColor: '#fff',
+    height: 101, paddingTop: 44, backgroundColor: '#fff',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 21,
   },

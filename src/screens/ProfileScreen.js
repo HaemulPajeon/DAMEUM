@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../components/BottomNav';
 
 export default function ProfileScreen({ navigation }) {
   return (
@@ -50,6 +51,8 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.regenerateText}>다시 생성하기</Text>
           </TouchableOpacity>
         </View>
+
+        <BottomNav navigation={navigation} active="profile" />
       </SafeAreaView>
     </View>
   );
@@ -59,13 +62,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f6ff' },
   safe: { flex: 1 },
   header: {
-    height: 57, backgroundColor: '#fff',
+    height: 101, paddingTop: 44, backgroundColor: '#fff',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 21,
   },
   headerSide: { width: 22 },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#575757' },
-  content: { paddingHorizontal: 16, paddingTop: 20 },
+  content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
   card: { backgroundColor: '#fff', borderRadius: 10, padding: 18 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#000' },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 15, marginTop: 17 },
