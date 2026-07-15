@@ -15,11 +15,25 @@
 | 단계 | 모델/런타임 | 선정 이유 |
 |---|---|---|
 | STT | faster-whisper `small`, CPU INT8 | CPU 메모리와 한국어 인식 품질의 균형 |
-| 문장 복원 | Qwen3-1.7B GGUF Q4_K_M + llama.cpp | 약 1GB급 양자화 모델, Windows/macOS CPU 지원 |
+| 문장 복원 | Qwen3-1.7B GGUF Q8_0 + llama.cpp | 공식 양자화 모델, Windows/macOS CPU 지원 |
 | 감정 분류 | KoELECTRA 한국어 6감정 분류 모델 | 한국어 문장 대상 소형 오픈소스 분류기 |
 | 음성 합성 | VoxCPM2 2B | VoxCPM 계열 중 한국어·음성 복제·감정 스타일을 함께 지원하는 버전 |
 
 VoxCPM2는 약 8GB의 모델 메모리가 필요하고 CPU 추론은 느립니다. 서버는 STT → 문장 복원 → 감정 분류 → TTS를 단일 큐에서 순차 처리하고, 기본적으로 작업이 끝날 때 모델을 해제해 16GB 환경의 메모리 경합을 줄입니다. API는 생성 요청에 `202 Accepted`를 반환하므로 프론트엔드는 작업 상태를 폴링해야 합니다.
+
+### 로컬 실측
+
+macOS ARM64, CPU 4스레드 조건에서 실제 모델 전체 흐름을 검증했습니다. 테스트 장비는 24GB RAM이며, 16GB 목표 환경과 같은 CPU·context·모델 해제 설정을 사용했습니다.
+
+| 항목 | 결과 |
+|---|---|
+| faster-whisper small CPU INT8 | 합성 한국어 WAV 전사 성공, 최대 RSS 약 1.08GB |
+| Qwen3-1.7B Q8_0 | 손상 문장 복원 약 4~5초, idle sleep 시 RSS 약 120MB |
+| KoELECTRA 감정 분류 | 이후 추론 약 0.02초, 최대 RSS 약 1.26GB |
+| VoxCPM2 CPU | 48kHz mono WAV 생성 성공, 최대 RSS 약 8.41GB |
+| HTTP 전체 페이지 작업 | STT → 교정 → 감정 → 합성 70.2초, 원문 완전 일치 |
+
+Qwen은 활성 상태에서 약 4GB를 사용하지만 `--sleep-idle-seconds 2` 적용 후 메모리를 해제합니다. 전체 작업이 끝난 뒤 FastAPI worker는 약 892MB로 내려왔습니다. CPU 세대와 메모리 대역폭에 따라 시간은 달라집니다.
 
 > 현재 자장가 기능은 부모 음색으로 가사를 부드럽게 **낭독**합니다. VoxCPM2는 노래 생성 모델이 아니므로 멜로디를 가진 가창은 별도 singing voice synthesis 모델이 필요합니다.
 
@@ -55,12 +69,15 @@ Qwen 공식 GGUF를 CPU로 실행합니다. Windows는 `winget install llama.cpp
 
 ```bash
 llama-server \
-  -hf Qwen/Qwen3-1.7B-GGUF:Q4_K_M \
+  -hf Qwen/Qwen3-1.7B-GGUF:Q8_0 \
   --host 127.0.0.1 \
   --port 8081 \
   --api-key local-only \
-  -ngl 0
+  -ngl 0 \
+  --sleep-idle-seconds 2
 ```
+
+`--sleep-idle-seconds 2`는 문장 복원이 끝난 뒤 Qwen 모델 메모리를 해제합니다. VoxCPM2와 Qwen이 동시에 상주하지 않게 하므로 16GB 환경에서는 이 옵션을 제거하지 마세요.
 
 PowerShell에서는 줄바꿈 문자로 백틱(`` ` ``)을 사용하거나 한 줄로 실행합니다.
 
