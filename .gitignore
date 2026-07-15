@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# STT LoRA local data (AI-Hub raw zips, extracted audio, patient metadata --
+# never commit; see stt-lora/README.md for how to regenerate locally)
+stt-lora/data/
+
+# IDE
+.idea/
+.vscode/

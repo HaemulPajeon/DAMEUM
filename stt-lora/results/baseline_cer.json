@@ -1,0 +1,20 @@
+{
+  "train": {
+    "n_clips": 294,
+    "hours": 0.446,
+    "zero_shot_cer": 2.2239,
+    "zero_shot_wer": 1.9655
+  },
+  "val": {
+    "n_clips": 112,
+    "hours": 0.256,
+    "zero_shot_cer": 0.6512,
+    "zero_shot_wer": 0.8894
+  },
+  "test": {
+    "n_clips": 125,
+    "hours": 0.201,
+    "zero_shot_cer": 0.6426,
+    "zero_shot_wer": 0.6029
+  }
+}

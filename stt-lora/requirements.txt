@@ -1,0 +1,10 @@
+# torch/torchaudio: install separately for your CUDA version first, e.g.
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+transformers>=5.0
+peft>=0.19
+accelerate>=1.0
+datasets>=5.0
+jiwer>=4.0
+soundfile>=0.13
+librosa>=0.11
+numpy
