@@ -133,16 +133,28 @@ class JobQueue:
                 raise RuntimeError("사용 가능한 목소리 프로필이 없습니다")
             expected_text = recording.page.text
             normalized_path = Path(recording.normalized_path)
-            reference = max(profile.samples, key=lambda sample: sample.duration_ms).normalized_path
+            reference = self.media_store.profile_reference_path(profile.id)
+            if not reference.is_file():
+                reference = self.media_store.build_profile_reference(
+                    profile.id,
+                    [
+                        Path(sample.normalized_path)
+                        for sample in sorted(
+                            profile.samples,
+                            key=lambda item: item.duration_ms,
+                            reverse=True,
+                        )
+                    ],
+                )
             target_version = recording.version
 
         transcript = await asyncio.to_thread(
             self.pipeline.transcribe, normalized_path, expected_text
         )
         await self._progress(job_id, 30)
-        corrected = await asyncio.to_thread(
-            self.pipeline.correct_sentence, transcript, expected_text
-        )
+        await asyncio.to_thread(self.pipeline.correct_sentence, transcript, expected_text)
+        # 동화책은 합성 문장이 페이지 원문과 반드시 일치해야 한다.
+        corrected = expected_text.strip()
         await self._progress(job_id, 55)
         emotion, score = await asyncio.to_thread(self.pipeline.classify_emotion, corrected)
         await self._progress(job_id, 70)
@@ -186,7 +198,17 @@ class JobQueue:
             if len(profile.samples) < 5:
                 raise RuntimeError("미리듣기에는 최소 5개의 음성 샘플이 필요합니다")
             text = job.input_text or "오늘도 사랑하는 우리 아이와 따뜻한 이야기를 나눌게요."
-            reference = max(profile.samples, key=lambda sample: sample.duration_ms).normalized_path
+            reference = self.media_store.build_profile_reference(
+                profile.id,
+                [
+                    Path(sample.normalized_path)
+                    for sample in sorted(
+                        profile.samples,
+                        key=lambda item: item.duration_ms,
+                        reverse=True,
+                    )
+                ],
+            )
             target_version = profile.preview_version
         output = (
             self.settings.data_dir / "audio" / "generated" / f"{uuid.uuid4().hex}.wav"
@@ -220,7 +242,19 @@ class JobQueue:
             )
             if profile is None or len(profile.samples) < 5:
                 raise RuntimeError("사용 가능한 목소리 프로필이 없습니다")
-            reference = max(profile.samples, key=lambda sample: sample.duration_ms).normalized_path
+            reference = self.media_store.profile_reference_path(profile.id)
+            if not reference.is_file():
+                reference = self.media_store.build_profile_reference(
+                    profile.id,
+                    [
+                        Path(sample.normalized_path)
+                        for sample in sorted(
+                            profile.samples,
+                            key=lambda item: item.duration_ms,
+                            reverse=True,
+                        )
+                    ],
+                )
             lyrics = lullaby.lyrics
         output = (
             self.settings.data_dir / "audio" / "generated" / f"{uuid.uuid4().hex}.wav"

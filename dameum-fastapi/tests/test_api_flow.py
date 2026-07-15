@@ -94,6 +94,7 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         profile = client.get(f"/v1/voice-profiles/{profile_id}", headers=HEADERS).json()
         assert profile["status"] == "ready"
         assert profile["sample_count"] == 5
+        assert len(list((tmp_path / "audio" / "profiles").glob("*.wav"))) == 1
         preview = client.get(profile["preview_url"], headers=HEADERS)
         assert preview.status_code == 200
         assert preview.headers["content-type"].startswith("audio/wav")
@@ -153,8 +154,14 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         assert response.status_code == 202
         assert wait_job(client, response.json()["job_id"])["status"] == "succeeded"
         manifest = client.get(f"/v1/books/{book_id}/playback-manifest", headers=HEADERS).json()
+        assert manifest["mode"] == "manual"
+        assert manifest["default_source"] == "clarified"
+        assert manifest["source_toggle_enabled"] is True
+        assert manifest["transition_budget_ms"] == 300
         assert manifest["pages"][0]["version"] == 2
+        assert manifest["pages"][0]["available_sources"] == ["original", "clarified"]
         assert manifest["pages"][1]["clarified_url"] is None
+        assert manifest["pages"][1]["available_sources"] == []
 
         response = client.post(
             "/v1/lullabies",
@@ -173,6 +180,25 @@ def test_complete_local_demo_flow(tmp_path: Path) -> None:
         assert {item["kind"] for item in library} == {"book", "lullaby"}
         lullaby = next(item for item in library if item["kind"] == "lullaby")
         assert client.get(lullaby["playable_url"], headers=HEADERS).status_code == 200
+        playback_plan = client.post(
+            f"/v1/lullabies/{lullaby['id']}/playback-plan",
+            headers=HEADERS,
+            json={},
+        )
+        assert playback_plan.status_code == 200
+        assert playback_plan.json() == {
+            "lullaby_id": lullaby["id"],
+            "mode": "automatic",
+            "audio_url": lullaby["playable_url"],
+            "repeat_count": 3,
+            "loop": True,
+            "timer_seconds": 1200,
+            "stop_on_timer": True,
+        }
+        assert lullaby["delete_url"] == f"/v1/lullabies/{lullaby['id']}"
+        assert client.delete(lullaby["delete_url"], headers=HEADERS).status_code == 204
+        remaining = client.get("/v1/library", headers=HEADERS).json()
+        assert {item["kind"] for item in remaining} == {"book"}
 
 
 def test_upload_and_consent_validation(tmp_path: Path) -> None:

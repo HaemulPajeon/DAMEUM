@@ -259,6 +259,31 @@ class LullabyRead(ApiModel):
     updated_at: datetime = Field(description="최종 변경 시각(UTC, ISO 8601)")
 
 
+class LullabyPlaybackPlanRequest(ApiModel):
+    repeat_count: int | None = Field(
+        default=None,
+        description="이번 재생에서 사용할 반복 횟수. 생략하면 저장된 설정을 사용합니다.",
+        ge=1,
+        le=100,
+    )
+    timer_minutes: int | None = Field(
+        default=None,
+        description="이번 재생의 중단 타이머(분). 생략하면 저장된 설정을 사용합니다.",
+        ge=1,
+        le=480,
+    )
+
+
+class LullabyPlaybackPlan(ApiModel):
+    lullaby_id: str = Field(description="자장가 UUID")
+    mode: Literal["automatic"] = Field(default="automatic", description="자동 재생 모드")
+    audio_url: str = Field(description="반복 재생할 WAV 상대 URL")
+    repeat_count: int = Field(description="재생 반복 횟수", ge=1, le=100)
+    loop: bool = Field(description="두 번 이상 반복하는지 여부")
+    timer_seconds: int | None = Field(default=None, description="재생 중단 타이머(초)")
+    stop_on_timer: bool = Field(description="타이머 만료 시 즉시 재생을 중단해야 하는지 여부")
+
+
 class JobRead(ApiModel):
     id: str = Field(description="비동기 작업 UUID")
     kind: Literal["recording_pipeline", "profile_preview", "lullaby_generation"] = Field(
@@ -300,6 +325,7 @@ class LibraryItem(ApiModel):
         "draft", "processing", "partial", "ready", "queued", "running", "succeeded", "failed"
     ] = Field(description="콘텐츠 준비 상태")
     playable_url: str | None = Field(default=None, description="manifest 또는 WAV 상대 URL")
+    delete_url: str = Field(description="콘텐츠를 삭제할 DELETE 요청 상대 URL")
     updated_at: datetime = Field(description="최종 변경 시각(UTC, ISO 8601)")
 
 
@@ -309,13 +335,26 @@ class PlaybackPage(ApiModel):
     image_url: str | None = Field(default=None, description="페이지 이미지 상대 URL")
     original_url: str | None = Field(default=None, description="원본 발화 WAV 상대 URL")
     clarified_url: str | None = Field(default=None, description="재합성 WAV 상대 URL")
+    available_sources: list[Literal["original", "clarified"]] = Field(
+        description="현재 페이지에서 선택 가능한 재생 소스"
+    )
     version: int | None = Field(default=None, description="페이지 녹음 버전", ge=1)
 
 
 class PlaybackManifest(ApiModel):
     book_id: str = Field(description="책 UUID")
     title: str = Field(description="책 제목")
+    mode: Literal["manual"] = Field(default="manual", description="페이지 수동 넘김 모드")
     pages: list[PlaybackPage] = Field(description="프리패치할 페이지별 미디어 URL")
+    default_source: Literal["clarified"] = Field(
+        default="clarified", description="화면 진입 시 기본 재생 소스"
+    )
+    source_toggle_enabled: bool = Field(default=True, description="원본·재합성 음성 토글 지원 여부")
+    transition_budget_ms: int = Field(
+        default=300,
+        description="다음 페이지 전환의 최대 목표 지연 시간(ms)",
+        ge=1,
+    )
     prefetch_next: bool = Field(
         default=True,
         description="300ms 이내 전환을 위해 다음 페이지를 미리 로드해야 하는지 여부",

@@ -60,6 +60,8 @@ from app.schemas import (
     JobRead,
     LibraryItem,
     LullabyCreate,
+    LullabyPlaybackPlan,
+    LullabyPlaybackPlanRequest,
     LullabyRead,
     PlaybackManifest,
     PlaybackPage,
@@ -359,6 +361,9 @@ async def add_voice_sample(
     await session.commit()
     await session.refresh(sample)
     request.app.state.media_store.delete(old_preview)
+    request.app.state.media_store.delete(
+        request.app.state.media_store.profile_reference_path(profile.id)
+    )
     return VoiceSampleRead.model_validate(sample)
 
 
@@ -407,6 +412,9 @@ async def delete_voice_sample(
     for path in paths:
         request.app.state.media_store.delete(path)
     request.app.state.media_store.delete(old_preview)
+    request.app.state.media_store.delete(
+        request.app.state.media_store.profile_reference_path(profile.id)
+    )
 
 
 @router.delete(
@@ -440,7 +448,10 @@ async def delete_voice_profile(
                 "message": "이 프로필을 사용한 책 녹음과 자장가를 먼저 삭제해야 합니다",
             },
         )
-    paths: list[str | None] = [profile.preview_path]
+    paths: list[str | Path | None] = [
+        profile.preview_path,
+        request.app.state.media_store.profile_reference_path(profile.id),
+    ]
     for sample in profile.samples:
         paths.extend([sample.original_path, sample.normalized_path])
     await session.delete(profile)
@@ -768,6 +779,11 @@ async def get_playback_manifest(
     pages = []
     for page in book.pages:
         recording = page.recording
+        available_sources = []
+        if recording:
+            available_sources.append("original")
+        if recording and recording.clarified_path:
+            available_sources.append("clarified")
         pages.append(
             PlaybackPage(
                 page_number=page.page_number,
@@ -787,6 +803,7 @@ async def get_playback_manifest(
                     if recording and recording.clarified_path
                     else None
                 ),
+                available_sources=available_sources,
                 version=recording.version if recording else None,
             )
         )
@@ -881,6 +898,47 @@ async def get_lullaby_audio(
     return file_response(lullaby.audio_path, "audio/wav")
 
 
+@router.post(
+    "/lullabies/{lullaby_id}/playback-plan",
+    response_model=LullabyPlaybackPlan,
+    tags=[TAG_LULLABIES],
+    summary="자장가 자동재생 계획 생성",
+    description=(
+        "저장된 반복·타이머 설정 또는 이번 요청의 재정의 값을 프론트 자동재생 명령으로 반환합니다. "
+        "프론트는 audio_url을 연속 재생하고 repeat_count 충족 또는 "
+        "timer_seconds 만료 시 중단합니다."
+    ),
+    response_description="프론트 자동재생에 바로 사용할 수 있는 실행 계획",
+    responses={404: NOT_FOUND_RESPONSE, 409: PROFILE_NOT_READY_RESPONSE},
+)
+async def create_lullaby_playback_plan(
+    lullaby_id: LullabyId,
+    payload: LullabyPlaybackPlanRequest,
+    session: AsyncSession = Depends(session_dependency),
+) -> LullabyPlaybackPlan:
+    lullaby = await session.get(Lullaby, lullaby_id)
+    if lullaby is None:
+        raise not_found("자장가")
+    if lullaby.status != JobStatus.SUCCEEDED.value or not lullaby.audio_path:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "lullaby_not_ready",
+                "message": "생성이 완료된 자장가만 재생할 수 있습니다",
+            },
+        )
+    repeat_count = payload.repeat_count or lullaby.repeat_count
+    timer_minutes = payload.timer_minutes or lullaby.timer_minutes
+    return LullabyPlaybackPlan(
+        lullaby_id=lullaby.id,
+        audio_url=f"/v1/lullabies/{lullaby.id}/audio",
+        repeat_count=repeat_count,
+        loop=repeat_count > 1,
+        timer_seconds=timer_minutes * 60 if timer_minutes else None,
+        stop_on_timer=timer_minutes is not None,
+    )
+
+
 @router.delete(
     "/lullabies/{lullaby_id}",
     status_code=204,
@@ -952,6 +1010,7 @@ async def list_library(session: AsyncSession = Depends(session_dependency)) -> l
                 title=book.title,
                 status=book_status,
                 playable_url=f"/v1/books/{book.id}/playback-manifest",
+                delete_url=f"/v1/books/{book.id}",
                 updated_at=book.updated_at,
             )
         )
@@ -962,6 +1021,7 @@ async def list_library(session: AsyncSession = Depends(session_dependency)) -> l
             title=item.title,
             status=item.status,
             playable_url=f"/v1/lullabies/{item.id}/audio" if item.audio_path else None,
+            delete_url=f"/v1/lullabies/{item.id}",
             updated_at=item.updated_at,
         )
         for item in lullabies
