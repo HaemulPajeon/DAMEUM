@@ -44,9 +44,9 @@ class SingingCatalog:
         try:
             records = json.loads(manifest.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError("한국어 무반주 자장가 카탈로그를 읽을 수 없습니다") from exc
+            raise RuntimeError("무반주 자장가 카탈로그를 읽을 수 없습니다") from exc
         if not isinstance(records, list) or not records:
-            raise RuntimeError("한국어 무반주 자장가 카탈로그가 비어 있습니다")
+            raise RuntimeError("무반주 자장가 카탈로그가 비어 있습니다")
 
         items: dict[str, SingingSource] = {}
         for record in records:
@@ -76,7 +76,7 @@ class SingingCatalog:
                     attribution=str(record["attribution"]),
                 )
             except (KeyError, TypeError, ValueError) as exc:
-                raise RuntimeError("한국어 무반주 자장가 카탈로그가 유효하지 않습니다") from exc
+                raise RuntimeError("무반주 자장가 카탈로그가 유효하지 않습니다") from exc
         return items
 
     @staticmethod
@@ -116,7 +116,8 @@ class SeedVCRunner:
 
         runtime_dir = self.settings.resolved_seedvc_runtime_dir
         inference_script = (runtime_dir / "inference.py").resolve()
-        python = self.settings.seedvc_python_path.resolve()
+        # venv의 Python 심볼릭 링크를 해제하면 가상환경 패키지 경로가 사라진다.
+        python = self.settings.seedvc_python_path
         if not self.settings.seedvc_runtime_ready:
             raise RuntimeError(
                 "Seed-VC 런타임이 없습니다. uv run python -m scripts.setup_seedvc를 실행하세요"

@@ -35,7 +35,7 @@ def test_openapi_is_frontend_ready(tmp_path: Path) -> None:
     operation_ids = [operation["operationId"] for _, _, operation in api_operations]
 
     assert document["openapi"].startswith("3.1.")
-    assert len(api_operations) == 36
+    assert len(api_operations) == 37
     assert len(operation_ids) == len(set(operation_ids))
     assert document["components"]["securitySchemes"]["APIKeyHeader"] == {
         "type": "apiKey",

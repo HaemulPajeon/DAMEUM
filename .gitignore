@@ -11,6 +11,7 @@ models/
 checkpoints/
 .runtime/
 *.sqlite3
+.DS_Store
 
 # 사용자별 IDE 설정
 .idea/

@@ -248,6 +248,39 @@
         "title": "BookRead",
         "type": "object"
       },
+      "BrowserAudioConstraints": {
+        "properties": {
+          "auto_gain_control": {
+            "description": "브라우저 자동 입력 음량 보정 요청 여부",
+            "title": "Auto Gain Control",
+            "type": "boolean"
+          },
+          "channel_count": {
+            "const": 1,
+            "description": "모노 녹음 요청값",
+            "title": "Channel Count",
+            "type": "integer"
+          },
+          "echo_cancellation": {
+            "description": "브라우저 하울링·반향 제거 요청 여부",
+            "title": "Echo Cancellation",
+            "type": "boolean"
+          },
+          "noise_suppression": {
+            "description": "브라우저 배경 소음 억제 요청 여부",
+            "title": "Noise Suppression",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "echo_cancellation",
+          "noise_suppression",
+          "auto_gain_control",
+          "channel_count"
+        ],
+        "title": "BrowserAudioConstraints",
+        "type": "object"
+      },
       "ErrorDetail": {
         "properties": {
           "code": {
@@ -1014,6 +1047,89 @@
         "title": "PreviewRequest",
         "type": "object"
       },
+      "RecordingCapabilities": {
+        "properties": {
+          "accepted_containers": {
+            "description": "서버가 시그니처로 검증하는 오디오 컨테이너",
+            "items": {
+              "type": "string"
+            },
+            "title": "Accepted Containers",
+            "type": "array"
+          },
+          "audio_constraints": {
+            "$ref": "#/components/schemas/BrowserAudioConstraints",
+            "description": "getUserMedia에 전달할 권장 audio constraints"
+          },
+          "localhost_http_allowed": {
+            "const": true,
+            "description": "localhost·127.0.0.1 HTTP가 브라우저 secure context로 허용되는지 여부",
+            "title": "Localhost Http Allowed",
+            "type": "boolean"
+          },
+          "max_duration_ms": {
+            "description": "서버가 허용하는 최대 녹음 길이(ms)",
+            "minimum": 500.0,
+            "title": "Max Duration Ms",
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "description": "녹음 한 건의 최대 업로드 크기(byte)",
+            "minimum": 1.0,
+            "title": "Max File Bytes",
+            "type": "integer"
+          },
+          "media_recorder_timeslice_ms": {
+            "description": "브라우저 메모리 사용량 제한을 위한 권장 dataavailable 주기(ms)",
+            "minimum": 250.0,
+            "title": "Media Recorder Timeslice Ms",
+            "type": "integer"
+          },
+          "min_duration_ms": {
+            "description": "서버가 허용하는 최소 녹음 길이(ms)",
+            "minimum": 500.0,
+            "title": "Min Duration Ms",
+            "type": "integer"
+          },
+          "page_recording_upload": {
+            "$ref": "#/components/schemas/RecordingUploadTarget",
+            "description": "동화 페이지 녹음·재녹음 업로드 계약"
+          },
+          "preferred_mime_types": {
+            "description": "MediaRecorder.isTypeSupported 순서대로 확인할 권장 MIME 목록",
+            "items": {
+              "type": "string"
+            },
+            "title": "Preferred Mime Types",
+            "type": "array"
+          },
+          "profile_sample_upload": {
+            "$ref": "#/components/schemas/RecordingUploadTarget",
+            "description": "목소리 프로필 녹음 업로드 계약"
+          },
+          "secure_context_required": {
+            "const": true,
+            "description": "브라우저 마이크 사용에 secure context가 필요한지 여부",
+            "title": "Secure Context Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "secure_context_required",
+          "localhost_http_allowed",
+          "min_duration_ms",
+          "max_duration_ms",
+          "max_file_bytes",
+          "preferred_mime_types",
+          "accepted_containers",
+          "media_recorder_timeslice_ms",
+          "audio_constraints",
+          "profile_sample_upload",
+          "page_recording_upload"
+        ],
+        "title": "RecordingCapabilities",
+        "type": "object"
+      },
       "RecordingRead": {
         "properties": {
           "clarified_url": {
@@ -1130,6 +1246,46 @@
         "title": "RecordingRead",
         "type": "object"
       },
+      "RecordingUploadTarget": {
+        "properties": {
+          "additional_fields": {
+            "description": "같이 전송할 multipart 필드명",
+            "items": {
+              "type": "string"
+            },
+            "title": "Additional Fields",
+            "type": "array"
+          },
+          "audio_field": {
+            "const": "audio",
+            "description": "multipart 오디오 필드명",
+            "title": "Audio Field",
+            "type": "string"
+          },
+          "method": {
+            "description": "녹음 Blob 업로드 HTTP method",
+            "enum": [
+              "POST",
+              "PUT"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "path_template": {
+            "description": "프론트에서 식별자를 치환할 API 경로 템플릿",
+            "title": "Path Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "path_template",
+          "audio_field",
+          "additional_fields"
+        ],
+        "title": "RecordingUploadTarget",
+        "type": "object"
+      },
       "SingingLullabyCreate": {
         "examples": [
           {
@@ -1137,7 +1293,7 @@
             "profile_id": "9f93bd9e-71d4-497d-9512-29c6975263f3",
             "repeat_count": 3,
             "semitone_shift": 0,
-            "source_id": "jajang-jajang",
+            "source_id": "little-star-english",
             "timer_minutes": 20
           }
         ],
@@ -1299,7 +1455,7 @@
             "type": "string"
           },
           "lyrics": {
-            "description": "선택한 자장가 한국어 가사",
+            "description": "선택한 자장가 가사",
             "title": "Lyrics",
             "type": "string"
           },
@@ -1386,7 +1542,7 @@
             "type": "string"
           },
           "audio_url": {
-            "description": "무반주 원본 가이드 보컬 WAV 상대 URL",
+            "description": "무반주 가창 WAV 상대 URL",
             "title": "Audio Url",
             "type": "string"
           },
@@ -1401,18 +1557,18 @@
             "type": "string"
           },
           "duration_ms": {
-            "description": "가이드 보컬 길이(ms)",
+            "description": "무반주 가창 길이(ms)",
             "minimum": 1.0,
             "title": "Duration Ms",
             "type": "integer"
           },
           "id": {
-            "description": "한국어 무반주 자장가 소스 ID",
+            "description": "무반주 자장가 프리셋 ID",
             "title": "Id",
             "type": "string"
           },
           "lyrics": {
-            "description": "한국어 가사",
+            "description": "가창에 포함된 가사",
             "title": "Lyrics",
             "type": "string"
           },
@@ -2643,7 +2799,7 @@
     },
     "/v1/books/{book_id}/pages/{page_number}/recording": {
       "put": {
-        "description": "선택한 페이지의 부모 음성을 등록합니다. 기존 녹음이 있으면 해당 페이지만 새 버전으로 교체하고 STT → 발화 의도 보존 LLM 교정 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. 페이지 원문은 교정 결과를 강제로 덮어쓰지 않습니다. 완료 여부는 응답의 status_url을 폴링합니다.",
+        "description": "선택한 페이지의 부모 음성 파일 또는 브라우저 MediaRecorder 녹음 Blob을 등록합니다. 기존 녹음이 있으면 해당 페이지만 새 버전으로 교체하고 STT → 발화 의도 보존 LLM 교정 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. 페이지 원문은 교정 결과를 강제로 덮어쓰지 않습니다. 완료 여부는 응답의 status_url을 폴링합니다.",
         "operationId": "put_page_recording",
         "parameters": [
           {
@@ -4006,24 +4162,20 @@
         ]
       }
     },
-    "/v1/singing-lullabies/catalog": {
+    "/v1/recording-capabilities": {
       "get": {
-        "description": "Seed-VC 변환용으로 수집·생성한 한국 전래 무반주 가이드 보컬의 제목, 가사, 길이, 라이선스와 원본 재생 URL을 반환합니다.",
-        "operationId": "list_singing_sources",
+        "description": "프론트엔드가 마이크 권한을 요청하고 MediaRecorder MIME을 선택한 뒤, 녹음 Blob을 목소리 프로필 샘플 또는 동화 페이지 녹음 API로 전송하는 데 필요한 제한과 경로를 반환합니다. 마이크 캡처 자체는 사용자 브라우저에서 수행합니다.",
+        "operationId": "get_recording_capabilities",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SingingSourceRead"
-                  },
-                  "title": "Response List Singing Sources",
-                  "type": "array"
+                  "$ref": "#/components/schemas/RecordingCapabilities"
                 }
               }
             },
-            "description": "선택 가능한 한국어 무반주 자장가 목록"
+            "description": "현재 서버 설정을 반영한 브라우저 녹음 계약"
           },
           "401": {
             "content": {
@@ -4094,7 +4246,101 @@
             "APIKeyHeader": []
           }
         ],
-        "summary": "한국어 무반주 자장가 카탈로그 조회",
+        "summary": "브라우저 녹음 연동 정보 조회",
+        "tags": [
+          "브라우저 녹음"
+        ]
+      }
+    },
+    "/v1/singing-lullabies/catalog": {
+      "get": {
+        "description": "Seed-VC 변환용 무반주 가창 프리셋의 제목, 가사, 길이, 라이선스와 원본 재생 URL을 반환합니다.",
+        "operationId": "list_singing_sources",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SingingSourceRead"
+                  },
+                  "title": "Response List Singing Sources",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "선택 가능한 무반주 자장가 프리셋 목록"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "무반주 자장가 프리셋 조회",
         "tags": [
           "Seed-VC 가창 자장가"
         ]
@@ -4102,16 +4348,16 @@
     },
     "/v1/singing-lullabies/catalog/{source_id}/audio": {
       "get": {
-        "description": "목소리 변환 전 한국어 가이드 보컬 WAV를 Range 요청 가능한 형태로 반환합니다.",
+        "description": "목소리 변환 전 무반주 가창 WAV를 Range 요청 가능한 형태로 반환합니다.",
         "operationId": "get_singing_source_audio",
         "parameters": [
           {
-            "description": "한국어 무반주 자장가 소스 ID",
+            "description": "무반주 자장가 프리셋 ID",
             "in": "path",
             "name": "source_id",
             "required": true,
             "schema": {
-              "description": "한국어 무반주 자장가 소스 ID",
+              "description": "무반주 자장가 프리셋 ID",
               "pattern": "^[a-z0-9-]+$",
               "title": "Source Id",
               "type": "string"
@@ -4391,7 +4637,7 @@
         ]
       },
       "post": {
-        "description": "카탈로그의 한국어 무반주 자장가를 선택해 음높이·리듬을 유지하면서 ready 상태인 부모 목소리 프로필로 비동기 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 별도입니다.",
+        "description": "카탈로그의 무반주 자장가 프리셋을 선택해 음높이·리듬을 유지하면서 ready 상태인 부모 목소리 프로필로 비동기 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 별도입니다.",
         "operationId": "create_singing_lullaby",
         "requestBody": {
           "content": {
@@ -6047,7 +6293,7 @@
         ]
       },
       "post": {
-        "description": "샘플 문장과 해당 문장을 읽은 오디오를 multipart/form-data로 등록합니다. WAV·FLAC·OGG·MP3·M4A·WebM을 받아 16kHz mono WAV로 정규화합니다. 샘플을 변경하면 기존 미리듣기는 무효화됩니다.",
+        "description": "샘플 문장과 해당 문장을 읽은 파일 또는 브라우저 MediaRecorder 녹음 Blob을 multipart/form-data로 등록합니다. WAV·FLAC·OGG·MP3·M4A·WebM을 받아 16kHz mono WAV로 정규화합니다. 샘플을 변경하면 기존 미리듣기는 무효화됩니다.",
         "operationId": "add_voice_sample",
         "parameters": [
           {
@@ -6358,6 +6604,10 @@
       "name": "상태 확인"
     },
     {
+      "description": "프론트엔드가 getUserMedia·MediaRecorder로 마이크를 녹음하고 multipart Blob을 목소리 프로필 또는 동화 페이지 API에 업로드하기 위한 런타임 계약입니다.",
+      "name": "브라우저 녹음"
+    },
+    {
       "description": "음성 소유자의 동의를 기록하고 5~20개의 발병 전·가족 기증·현재 음성 샘플로 VoxCPM2 참조 프로필을 구성합니다. 샘플 변경 후에는 미리듣기를 다시 생성해야 합니다.",
       "name": "목소리 프로필"
     },
@@ -6370,7 +6620,7 @@
       "name": "자장가"
     },
     {
-      "description": "한국 전래 무반주 가이드 보컬을 선택하고 Seed-VC SVC 모델로 멜로디를 유지한 채 등록된 부모 음색으로 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 분리됩니다.",
+      "description": "무반주 가창 프리셋을 선택하고 Seed-VC SVC 모델로 멜로디를 유지한 채 등록된 부모 음색으로 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 분리됩니다.",
       "name": "Seed-VC 가창 자장가"
     },
     {

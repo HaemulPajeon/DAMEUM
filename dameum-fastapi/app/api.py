@@ -52,6 +52,7 @@ from app.openapi import (
     TAG_LIBRARY,
     TAG_LULLABIES,
     TAG_PROFILES,
+    TAG_RECORDING,
     TAG_SINGING_LULLABIES,
     UNSUPPORTED_AUDIO_RESPONSE,
 )
@@ -59,6 +60,7 @@ from app.schemas import (
     BookCreate,
     BookPageRead,
     BookRead,
+    BrowserAudioConstraints,
     JobAccepted,
     JobRead,
     LibraryItem,
@@ -69,7 +71,9 @@ from app.schemas import (
     PlaybackManifest,
     PlaybackPage,
     PreviewRequest,
+    RecordingCapabilities,
     RecordingRead,
+    RecordingUploadTarget,
     SingingLullabyCreate,
     SingingLullabyPlaybackPlan,
     SingingLullabyRead,
@@ -88,7 +92,7 @@ PageNumber = Annotated[int, ApiPath(ge=1, description="1부터 시작하는 페�
 LullabyId = Annotated[str, ApiPath(description="자장가 UUID")]
 SingingSourceId = Annotated[
     str,
-    ApiPath(pattern=r"^[a-z0-9-]+$", description="한국어 무반주 자장가 소스 ID"),
+    ApiPath(pattern=r"^[a-z0-9-]+$", description="무반주 자장가 프리셋 ID"),
 ]
 SingingLullabyId = Annotated[str, ApiPath(description="Seed-VC 가창 자장가 변환 UUID")]
 JobId = Annotated[str, ApiPath(description="비동기 작업 UUID")]
@@ -108,6 +112,55 @@ def not_found(resource: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail={"code": "not_found", "message": f"{resource}을(를) 찾을 수 없습니다"},
+    )
+
+
+@router.get(
+    "/recording-capabilities",
+    response_model=RecordingCapabilities,
+    tags=[TAG_RECORDING],
+    summary="브라우저 녹음 연동 정보 조회",
+    description=(
+        "프론트엔드가 마이크 권한을 요청하고 MediaRecorder MIME을 선택한 뒤, 녹음 Blob을 "
+        "목소리 프로필 샘플 또는 동화 페이지 녹음 API로 전송하는 데 필요한 제한과 경로를 "
+        "반환합니다. 마이크 캡처 자체는 사용자 브라우저에서 수행합니다."
+    ),
+    response_description="현재 서버 설정을 반영한 브라우저 녹음 계약",
+)
+async def get_recording_capabilities(request: Request) -> RecordingCapabilities:
+    settings = request.app.state.settings
+    return RecordingCapabilities(
+        secure_context_required=True,
+        localhost_http_allowed=True,
+        min_duration_ms=500,
+        max_duration_ms=settings.max_audio_seconds * 1000,
+        max_file_bytes=settings.max_audio_bytes,
+        preferred_mime_types=[
+            "audio/webm;codecs=opus",
+            "audio/mp4;codecs=mp4a.40.2",
+            "audio/ogg;codecs=opus",
+            "audio/wav",
+        ],
+        accepted_containers=["WAV", "FLAC", "Ogg", "MP3", "MP4/M4A", "WebM"],
+        media_recorder_timeslice_ms=1000,
+        audio_constraints=BrowserAudioConstraints(
+            echo_cancellation=True,
+            noise_suppression=True,
+            auto_gain_control=True,
+            channel_count=1,
+        ),
+        profile_sample_upload=RecordingUploadTarget(
+            method="POST",
+            path_template="/v1/voice-profiles/{profile_id}/samples",
+            audio_field="audio",
+            additional_fields=["prompt_text"],
+        ),
+        page_recording_upload=RecordingUploadTarget(
+            method="PUT",
+            path_template="/v1/books/{book_id}/pages/{page_number}/recording",
+            audio_field="audio",
+            additional_fields=["profile_id"],
+        ),
     )
 
 
@@ -375,7 +428,8 @@ async def get_voice_profile(
     tags=[TAG_PROFILES],
     summary="목소리 학습 샘플 등록",
     description=(
-        "샘플 문장과 해당 문장을 읽은 오디오를 multipart/form-data로 등록합니다. "
+        "샘플 문장과 해당 문장을 읽은 파일 또는 브라우저 MediaRecorder 녹음 Blob을 "
+        "multipart/form-data로 등록합니다. "
         "WAV·FLAC·OGG·MP3·M4A·WebM을 받아 16kHz mono WAV로 정규화합니다. "
         "샘플을 변경하면 기존 미리듣기는 무효화됩니다."
     ),
@@ -728,7 +782,8 @@ async def get_page_image(
     tags=[TAG_BOOKS],
     summary="페이지 음성 녹음·재녹음",
     description=(
-        "선택한 페이지의 부모 음성을 등록합니다. 기존 녹음이 있으면 "
+        "선택한 페이지의 부모 음성 파일 또는 브라우저 MediaRecorder 녹음 Blob을 등록합니다. "
+        "기존 녹음이 있으면 "
         "해당 페이지만 새 버전으로 교체하고 "
         "STT → 발화 의도 보존 LLM 교정 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. "
         "페이지 원문은 교정 결과를 강제로 덮어쓰지 않습니다. "
@@ -1031,12 +1086,12 @@ async def delete_lullaby(
     "/singing-lullabies/catalog",
     response_model=list[SingingSourceRead],
     tags=[TAG_SINGING_LULLABIES],
-    summary="한국어 무반주 자장가 카탈로그 조회",
+    summary="무반주 자장가 프리셋 조회",
     description=(
-        "Seed-VC 변환용으로 수집·생성한 한국 전래 무반주 가이드 보컬의 제목, 가사, "
+        "Seed-VC 변환용 무반주 가창 프리셋의 제목, 가사, "
         "길이, 라이선스와 원본 재생 URL을 반환합니다."
     ),
-    response_description="선택 가능한 한국어 무반주 자장가 목록",
+    response_description="선택 가능한 무반주 자장가 프리셋 목록",
 )
 async def list_singing_sources(request: Request) -> list[SingingSourceRead]:
     return [singing_source_read(item) for item in request.app.state.singing_catalog.list()]
@@ -1047,7 +1102,7 @@ async def list_singing_sources(request: Request) -> list[SingingSourceRead]:
     response_class=FileResponse,
     tags=[TAG_SINGING_LULLABIES],
     summary="무반주 자장가 원본 미리듣기",
-    description="목소리 변환 전 한국어 가이드 보컬 WAV를 Range 요청 가능한 형태로 반환합니다.",
+    description="목소리 변환 전 무반주 가창 WAV를 Range 요청 가능한 형태로 반환합니다.",
     responses=AUDIO_FILE_RESPONSE,
 )
 async def get_singing_source_audio(request: Request, source_id: SingingSourceId) -> FileResponse:
@@ -1064,7 +1119,7 @@ async def get_singing_source_audio(request: Request, source_id: SingingSourceId)
     tags=[TAG_SINGING_LULLABIES],
     summary="Seed-VC 부모 음색 자장가 변환",
     description=(
-        "카탈로그의 한국어 무반주 자장가를 선택해 음높이·리듬을 유지하면서 ready 상태인 "
+        "카탈로그의 무반주 자장가 프리셋을 선택해 음높이·리듬을 유지하면서 ready 상태인 "
         "부모 목소리 프로필로 비동기 변환합니다. 기존 VoxCPM2 자장가 낭독 API와 별도입니다."
     ),
     response_description="접수된 Seed-VC 가창 음색 변환 작업",
