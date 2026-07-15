@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dameum-api"
+version = "0.1.0"
+description = "구음장애 부모의 목소리를 증강하는 로컬 FastAPI 서버"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "aiosqlite>=0.21,<1",
+  "av>=14,<17",
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "pillow>=11,<13",
+  "pydantic-settings>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "sqlalchemy[asyncio]>=2.0.41,<3",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+ml = [
+  "faster-whisper>=1.2,<2",
+  "soundfile>=0.13,<1",
+  "transformers>=4.53,<6",
+  "voxcpm>=1.0.0rc1,<2",
+]
+dev = [
+  "coverage[toml]>=7.9,<8",
+  "httpx2>=2.7,<3",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.0,<2",
+  "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S"]
+# FastAPI는 의존성 메타데이터를 함수 기본값으로 선언한다.
+ignore = ["B008", "S101"]
