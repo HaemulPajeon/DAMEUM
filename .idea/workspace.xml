@@ -2,11 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="71d61ffb-2127-4681-bafb-e472da52f708" name="변경" comment="..">
-      <change afterPath="$PROJECT_DIR$/src/store/VoiceProfileContext.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/App.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/LibraryScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/LibraryScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/BookPlaybackScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/BookPlaybackScreen.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/screens/ProfileScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/ProfileScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/VoiceRegisterRecordingScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/VoiceRegisterRecordingScreen.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/store/VoiceProfileContext.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/store/VoiceProfileContext.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

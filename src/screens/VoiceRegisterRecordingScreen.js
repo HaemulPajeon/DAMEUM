@@ -41,7 +41,7 @@ export default function VoiceRegisterRecordingScreen({ navigation }) {
           <TouchableOpacity
               style={styles.doneBtn}
               onPress={() => {
-                setProfile({ name: '00님의 목소리', duration: formatElapsed(elapsed) });
+                setProfile({ name: '민수님의 목소리', duration: '00:00' });
                 navigation.navigate('Profile');
               }}
           >

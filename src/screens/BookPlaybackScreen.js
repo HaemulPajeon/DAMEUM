@@ -16,7 +16,7 @@ function formatTime(seconds) {
 
 const PAGE_DURATION_SECONDS = 180;
 const PAGE_TEXTS = [
-  '아기 곰은 달님과 산책중이네요',
+  '며칠 뒤 배고픈 늑대가 첫째 돼지의 초가집 앞에 나타났어요.',
   '숲속 친구들이 하나 둘 모여들었어요',
   '조용히 자장가가 흘러나오기 시작했어요',
 ];
