@@ -27,16 +27,16 @@ Swagger UI의 우측 **Authorize**에서 `X-API-Key`를 한 번 입력하면 `/v
 
 ## 2. 프론트 클라이언트 생성
 
-백엔드 변경 후 저장소 루트에서 계약 파일을 갱신합니다.
+백엔드 변경 후 `dameum-fastapi` 디렉터리에서 계약 파일을 갱신합니다.
 
 ```bash
-.venv/bin/python scripts/export_openapi.py
+uv run python -m scripts.export_openapi
 ```
 
 프론트 저장소에서 스키마 타입만 생성할 때는 다음처럼 사용합니다.
 
 ```bash
-npx openapi-typescript /path/to/DAMEUM/docs/openapi.json \
+npx openapi-typescript /path/to/DAMEUM/dameum-fastapi/docs/openapi.json \
   --output src/api/dameum-schema.d.ts
 ```
 
@@ -45,7 +45,7 @@ generator를 사용할 수 있습니다.
 
 ```bash
 npx @openapitools/openapi-generator-cli generate \
-  -i /path/to/DAMEUM/docs/openapi.json \
+  -i /path/to/DAMEUM/dameum-fastapi/docs/openapi.json \
   -g typescript-fetch \
   -o src/api/generated \
   --additional-properties=supportsES6=true,useSingleRequestParameter=true
@@ -201,15 +201,16 @@ queued -> running -> succeeded
 | 필드 | 의미 |
 |---|---|
 | `transcript` | faster-whisper가 인식한 구음 원문 |
-| `corrected_text` | 로컬 LLM이 페이지 원문 맥락으로 복원한 최종 합성 문장 |
+| `corrected_text` | LLM이 의도를 복원한 뒤 합성 입력으로 확정한 페이지 원문. `text`와 완전히 일치 |
 | `emotion`, `emotion_score` | 한국어 감정 분류 label과 신뢰도 |
 | `original_url` | 정규화된 부모 원본 음성 |
 | `clarified_url` | 부모 음색을 유지해 또렷하게 재합성한 음성 |
 | `version` | 같은 페이지의 재녹음 순서 |
 
 수동 재생 화면은 `playback-manifest`를 먼저 받고 현재·다음 페이지 이미지와 오디오를 미리
-`fetch`합니다. `prefetch_next=true`는 300ms 이내 전환 목표를 위한 프론트 힌트이지, 서버가 300ms
-내 추론을 끝낸다는 의미가 아닙니다.
+`fetch`합니다. `available_sources`로 토글 가능 여부를 판단하고 `default_source=clarified`를 최초
+선택값으로 사용합니다. `prefetch_next=true`와 `transition_budget_ms=300`은 300ms 이내 전환 목표를
+위한 프론트 힌트이지, 서버가 300ms 내 추론을 끝낸다는 의미가 아닙니다.
 
 ## 7. 미디어 재생
 
@@ -238,12 +239,14 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 | `list_lullabies` | `GET /v1/lullabies` | `200` | 상태·재생 설정·URL |
 | `get_lullaby` | `GET /v1/lullabies/{lullaby_id}` | `200` | 자장가 상세 |
 | `get_lullaby_audio` | `GET /v1/lullabies/{lullaby_id}/audio` | `200` | `audio/wav` |
+| `create_lullaby_playback_plan` | `POST /v1/lullabies/{lullaby_id}/playback-plan` | `200` | 자동 반복·타이머 실행 계획 |
 | `delete_lullaby` | `DELETE /v1/lullabies/{lullaby_id}` | `204` | 메타데이터와 WAV 삭제 |
 | `list_library` | `GET /v1/library` | `200` | 책·자장가 최근 수정 순 통합 목록 |
 
-`repeat_count`, `timer_minutes`는 프론트 재생 정책입니다. 현재 VoxCPM2 결과는 노래가 아니라 부모
-음색의 부드러운 낭독이며, 프론트가 반복 횟수와 타이머 종료를 제어합니다. `playable_url=null`이면
-아직 재생 버튼을 활성화하지 않습니다.
+`playback-plan`은 저장된 `repeat_count`, `timer_minutes`를 초 단위 실행 계약으로 변환합니다. 요청
+본문으로 이번 재생에만 반복 횟수와 타이머를 재정의할 수 있습니다. 현재 VoxCPM2 결과는 노래가
+아니라 부모 음색의 부드러운 낭독입니다. `playable_url=null`이면 아직 재생 버튼을 활성화하지
+않고, 라이브러리 삭제는 각 항목의 `delete_url`에 `DELETE`를 요청합니다.
 
 ## 9. 변경·검증 규칙
 
@@ -255,8 +258,8 @@ export async function loadProtectedMedia(path: string, apiKey: string) {
 - Swagger의 성공·오류 예제는 개발 편의를 위한 값이며 실제 UUID로 고정하지 않습니다.
 
 ```bash
-.venv/bin/ruff check .
-.venv/bin/pytest -q
-.venv/bin/python scripts/export_openapi.py
+uv run ruff check .
+uv run python -m pytest -q
+uv run python -m scripts.export_openapi
 git diff --exit-code docs/openapi.json
 ```

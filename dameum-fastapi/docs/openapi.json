@@ -477,6 +477,11 @@
       },
       "LibraryItem": {
         "properties": {
+          "delete_url": {
+            "description": "콘텐츠를 삭제할 DELETE 요청 상대 URL",
+            "title": "Delete Url",
+            "type": "string"
+          },
           "id": {
             "description": "책 또는 자장가 UUID",
             "title": "Id",
@@ -535,6 +540,7 @@
           "kind",
           "title",
           "status",
+          "delete_url",
           "updated_at"
         ],
         "title": "LibraryItem",
@@ -599,6 +605,99 @@
           "lyrics"
         ],
         "title": "LullabyCreate",
+        "type": "object"
+      },
+      "LullabyPlaybackPlan": {
+        "properties": {
+          "audio_url": {
+            "description": "반복 재생할 WAV 상대 URL",
+            "title": "Audio Url",
+            "type": "string"
+          },
+          "loop": {
+            "description": "두 번 이상 반복하는지 여부",
+            "title": "Loop",
+            "type": "boolean"
+          },
+          "lullaby_id": {
+            "description": "자장가 UUID",
+            "title": "Lullaby Id",
+            "type": "string"
+          },
+          "mode": {
+            "const": "automatic",
+            "default": "automatic",
+            "description": "자동 재생 모드",
+            "title": "Mode",
+            "type": "string"
+          },
+          "repeat_count": {
+            "description": "재생 반복 횟수",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Repeat Count",
+            "type": "integer"
+          },
+          "stop_on_timer": {
+            "description": "타이머 만료 시 즉시 재생을 중단해야 하는지 여부",
+            "title": "Stop On Timer",
+            "type": "boolean"
+          },
+          "timer_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "재생 중단 타이머(초)",
+            "title": "Timer Seconds"
+          }
+        },
+        "required": [
+          "lullaby_id",
+          "audio_url",
+          "repeat_count",
+          "loop",
+          "stop_on_timer"
+        ],
+        "title": "LullabyPlaybackPlan",
+        "type": "object"
+      },
+      "LullabyPlaybackPlanRequest": {
+        "properties": {
+          "repeat_count": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "이번 재생에서 사용할 반복 횟수. 생략하면 저장된 설정을 사용합니다.",
+            "title": "Repeat Count"
+          },
+          "timer_minutes": {
+            "anyOf": [
+              {
+                "maximum": 480.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "이번 재생의 중단 타이머(분). 생략하면 저장된 설정을 사용합니다.",
+            "title": "Timer Minutes"
+          }
+        },
+        "title": "LullabyPlaybackPlanRequest",
         "type": "object"
       },
       "LullabyRead": {
@@ -742,6 +841,20 @@
             "title": "Book Id",
             "type": "string"
           },
+          "default_source": {
+            "const": "clarified",
+            "default": "clarified",
+            "description": "화면 진입 시 기본 재생 소스",
+            "title": "Default Source",
+            "type": "string"
+          },
+          "mode": {
+            "const": "manual",
+            "default": "manual",
+            "description": "페이지 수동 넘김 모드",
+            "title": "Mode",
+            "type": "string"
+          },
           "pages": {
             "description": "프리패치할 페이지별 미디어 URL",
             "items": {
@@ -756,10 +869,23 @@
             "title": "Prefetch Next",
             "type": "boolean"
           },
+          "source_toggle_enabled": {
+            "default": true,
+            "description": "원본·재합성 음성 토글 지원 여부",
+            "title": "Source Toggle Enabled",
+            "type": "boolean"
+          },
           "title": {
             "description": "책 제목",
             "title": "Title",
             "type": "string"
+          },
+          "transition_budget_ms": {
+            "default": 300,
+            "description": "다음 페이지 전환의 최대 목표 지연 시간(ms)",
+            "minimum": 1.0,
+            "title": "Transition Budget Ms",
+            "type": "integer"
           }
         },
         "required": [
@@ -772,6 +898,18 @@
       },
       "PlaybackPage": {
         "properties": {
+          "available_sources": {
+            "description": "현재 페이지에서 선택 가능한 재생 소스",
+            "items": {
+              "enum": [
+                "original",
+                "clarified"
+              ],
+              "type": "string"
+            },
+            "title": "Available Sources",
+            "type": "array"
+          },
           "clarified_url": {
             "anyOf": [
               {
@@ -835,7 +973,8 @@
         },
         "required": [
           "page_number",
-          "text"
+          "text",
+          "available_sources"
         ],
         "title": "PlaybackPage",
         "type": "object"
@@ -3384,6 +3523,151 @@
           }
         ],
         "summary": "자장가 음성 재생",
+        "tags": [
+          "자장가"
+        ]
+      }
+    },
+    "/v1/lullabies/{lullaby_id}/playback-plan": {
+      "post": {
+        "description": "저장된 반복·타이머 설정 또는 이번 요청의 재정의 값을 프론트 자동재생 명령으로 반환합니다. 프론트는 audio_url을 연속 재생하고 repeat_count 충족 또는 timer_seconds 만료 시 중단합니다.",
+        "operationId": "create_lullaby_playback_plan",
+        "parameters": [
+          {
+            "description": "자장가 UUID",
+            "in": "path",
+            "name": "lullaby_id",
+            "required": true,
+            "schema": {
+              "description": "자장가 UUID",
+              "title": "Lullaby Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LullabyPlaybackPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LullabyPlaybackPlan"
+                }
+              }
+            },
+            "description": "프론트 자동재생에 바로 사용할 수 있는 실행 계획"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "invalid_api_key",
+                    "message": "유효한 API 키가 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "X-API-Key가 없거나 일치하지 않음",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "필요한 인증 방식",
+                "schema": {
+                  "example": "ApiKey",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "not_found",
+                    "message": "리소스를 찾을 수 없습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "요청한 리소스가 존재하지 않음"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "profile_not_ready",
+                    "message": "미리듣기로 확인을 마친 목소리 프로필이 필요합니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "목소리 프로필의 미리듣기 확인이 완료되지 않음"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "validation_error",
+                    "errors": [
+                      {
+                        "field": "body.name",
+                        "message": "Field required"
+                      }
+                    ],
+                    "message": "요청 값이 올바르지 않습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "경로·쿼리·본문·파일 필드 검증 실패"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "internal_error",
+                    "message": "요청 처리 중 오류가 발생했습니다"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "처리되지 않은 서버 또는 모델 오류"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "자장가 자동재생 계획 생성",
         "tags": [
           "자장가"
         ]

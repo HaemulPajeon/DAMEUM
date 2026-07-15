@@ -76,6 +76,7 @@ class Settings(BaseSettings):
             self.data_dir,
             self.data_dir / "audio" / "original",
             self.data_dir / "audio" / "normalized",
+            self.data_dir / "audio" / "profiles",
             self.data_dir / "audio" / "generated",
             self.data_dir / "images",
         ):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import uuid
+import wave
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -90,6 +91,55 @@ class MediaStore:
                 detail={"code": "invalid_image", "message": "유효한 이미지가 아닙니다"},
             ) from exc
 
+    def profile_reference_path(self, profile_id: str) -> Path:
+        token = uuid.UUID(profile_id).hex
+        return self.data_dir / "audio" / "profiles" / f"{token}.wav"
+
+    def build_profile_reference(
+        self,
+        profile_id: str,
+        normalized_paths: list[Path],
+        max_seconds: int = 30,
+    ) -> Path:
+        if not normalized_paths:
+            raise ValueError("목소리 프로필에 음성 샘플이 없습니다")
+        target = self.profile_reference_path(profile_id)
+        temporary = target.with_suffix(".tmp.wav")
+        max_frames = max_seconds * 16000
+        silence = b"\x00\x00" * 1920
+        written_frames = 0
+        try:
+            with wave.open(str(temporary), "wb") as output:
+                output.setnchannels(1)
+                output.setsampwidth(2)
+                output.setframerate(16000)
+                for path in normalized_paths:
+                    with wave.open(str(path), "rb") as source:
+                        if (
+                            source.getnchannels() != 1
+                            or source.getsampwidth() != 2
+                            or source.getframerate() != 16000
+                        ):
+                            raise ValueError("정규화되지 않은 프로필 음성 샘플입니다")
+                        remaining = max_frames - written_frames
+                        if remaining <= 0:
+                            break
+                        frame_count = min(source.getnframes(), remaining)
+                        output.writeframes(source.readframes(frame_count))
+                        written_frames += frame_count
+                    if written_frames < max_frames:
+                        silence_frames = min(len(silence) // 2, max_frames - written_frames)
+                        output.writeframes(silence[: silence_frames * 2])
+                        written_frames += silence_frames
+            if written_frames < 16000:
+                raise ValueError("프로필 참조 음성은 최소 1초 이상이어야 합니다")
+            temporary.replace(target)
+            target.chmod(0o600)
+            return target
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
+
     def delete(self, value: str | Path | None) -> None:
         if value is None:
             return
@@ -137,6 +187,7 @@ class MediaStore:
             resampler = av.AudioResampler(format="s16", layout="mono", rate=16000)
             with av.open(str(target), mode="w", format="wav") as output:
                 output_stream = output.add_stream("pcm_s16le", rate=16000)
+                output_stream.layout = "mono"
                 samples = 0
                 for frame in container.decode(input_stream):
                     for converted in resampler.resample(frame):
