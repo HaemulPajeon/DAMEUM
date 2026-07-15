@@ -5,7 +5,11 @@ import secrets
 from fastapi import HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader
 
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+api_key_header = APIKeyHeader(
+    name="X-API-Key",
+    description="로컬 FastAPI와 프론트엔드가 공유하는 32자 이상의 API 키",
+    auto_error=False,
+)
 
 
 async def require_api_key(
