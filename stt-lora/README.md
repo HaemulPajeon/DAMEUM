@@ -4,12 +4,15 @@ Whisper-small을 AI-Hub `013.구음장애 음성인식 데이터`(뇌신경장�
 
 ## 결과 (프로토타입, 해커톤 시간 제약 하 실행)
 
-| | CER | WER |
+| test set (125 clips) | CER | WER |
 |---|---|---|
-| 제로샷 baseline (whisper-small) | 64.3% | 60.3% |
-| LoRA 파인튜닝 후 | **53.6%** | **51.5%** |
+| whisper-small 제로샷 (LoRA 없음) | 74.04% | 62.50% |
+| whisper-small + LoRA 파인튜닝 | **53.62%** | **51.47%** |
+| 상대 개선율 | **▼ 27.6%** | **▼ 17.6%** |
 
-test 125개 클립 기준, train 24분/val 14분/test 12분 분량의 매우 작은 서브셋으로 학습한 결과입니다. 파이프라인이 동작하고 파인튜닝이 방향성 있는 개선을 만든다는 것을 확인한 **프로토타입**이며, 프로덕션 정확도가 아닙니다. 더 큰 데이터(원본 계획은 262시간 중 25~30시간)로 재학습하면 개선 여지가 있습니다.
+⚠️ **정정 (이전 버전 오류):** 이전 커밋에서 "제로샷 baseline (whisper-small) 64.3%/60.3%"로 표기했던 수치는 실제로는 whisper-**tiny**로 측정된 값입니다(`segment_and_align.py`가 세그멘테이션 속도를 위해 whisper-tiny를 쓰면서 나온 부산물 baseline, `baseline_cer.json` 참고). 모델 크기가 달라 파인튜닝 효과와 공정 비교가 아니었습니다. 위 표는 파인튜닝과 **동일한 whisper-small**로 `pipeline/compute_smallbase_cer.py`를 통해 별도 재측정한 수치입니다.
+
+train 24분/val 14분/test 12분 분량의 매우 작은 서브셋으로 학습한 결과입니다. 파이프라인이 동작하고 파인튜닝이 방향성 있는 개선을 만든다는 것을 확인한 **프로토타입**이며, 프로덕션 정확도가 아닙니다. 더 큰 데이터(원본 계획은 262시간 중 25~30시간)로 재학습하면 개선 여지가 있습니다.
 
 ## ⚠️ 백엔드 통합 전 확인 필요: STT 런타임 포맷 불일치
 
@@ -40,7 +43,8 @@ data/
 3. `pipeline/compute_baseline_cer.py` — 세그멘테이션 단계에서 나온 제로샷 예측으로 baseline CER/WER 집계 (별도 추론 불필요)
 4. `pipeline/train_lora.py` — whisper-small + LoRA(r=32, alpha=64, target=q_proj·v_proj) 파인튜닝
 5. `pipeline/evaluate.py` — test set으로 파인튜닝 모델 CER/WER 평가, baseline과 비교
-6. `pipeline/infer.py` — `transcribe(wav_path) -> str` 함수. 백엔드/TTS 연동 지점.
+6. `pipeline/compute_smallbase_cer.py` — (권장) whisper-small 제로샷(LoRA 없음)을 test set에 직접 돌려 공정 비교용 baseline 산출. 3번의 `compute_baseline_cer.py`는 세그멘테이션에 쓴 모델(현재 whisper-tiny) 기준이라 파인튜닝 모델과 크기가 다르면 이걸로 다시 재는 걸 권장.
+7. `pipeline/infer.py` — `transcribe(wav_path) -> str` 함수. 백엔드/TTS 연동 지점.
 
 ```bash
 export DAMEUM_STT_DATA_DIR=/path/to/data   # Windows: $env:DAMEUM_STT_DATA_DIR
