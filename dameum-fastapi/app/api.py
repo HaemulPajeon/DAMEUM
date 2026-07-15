@@ -730,7 +730,8 @@ async def get_page_image(
     description=(
         "선택한 페이지의 부모 음성을 등록합니다. 기존 녹음이 있으면 "
         "해당 페이지만 새 버전으로 교체하고 "
-        "STT → LLM 문장 복원 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. "
+        "STT → 발화 의도 보존 LLM 교정 → 감정 분류 → VoxCPM2 재합성을 비동기로 실행합니다. "
+        "페이지 원문은 교정 결과를 강제로 덮어쓰지 않습니다. "
         "완료 여부는 응답의 status_url을 폴링합니다."
     ),
     response_description="접수된 페이지 음성 처리 작업",
