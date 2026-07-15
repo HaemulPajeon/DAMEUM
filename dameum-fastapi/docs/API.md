@@ -129,7 +129,7 @@ JSON 오류는 같은 envelope을 사용합니다. 단, 잘못된 오디오 `Ran
 다음 API는 모델 추론을 기다리지 않고 `202 Accepted`를 반환합니다.
 
 - `generate_profile_preview`: 목소리 프로필 미리듣기 생성·재생성
-- `put_page_recording`: STT → LLM 문장 복원 → 감정 분류 → VoxCPM2 재합성
+- `put_page_recording`: STT → 발화 의도 보존 LLM 교정 → 감정 분류 → VoxCPM2 재합성
 - `create_lullaby`: 부모 음색 자장가 낭독 생성
 - `create_singing_lullaby`: 원곡 멜로디를 유지한 Seed-VC 부모 음색 변환
 
@@ -203,7 +203,7 @@ queued -> running -> succeeded
 | 필드 | 의미 |
 |---|---|
 | `transcript` | 구음장애 음성 LoRA를 적용한 Whisper가 인식한 구음 원문 |
-| `corrected_text` | LLM이 의도를 복원한 뒤 합성 입력으로 확정한 페이지 원문. `text`와 완전히 일치 |
+| `corrected_text` | LLM이 실제 발화 의도를 보존해 최소 교정한 최종 TTS 입력. 페이지 `text`와 다를 수 있음 |
 | `emotion`, `emotion_score` | 한국어 감정 분류 label과 신뢰도 |
 | `original_url` | 정규화된 부모 원본 음성 |
 | `clarified_url` | 부모 음색을 유지해 또렷하게 재합성한 음성 |
